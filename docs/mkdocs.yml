@@ -1,0 +1,37 @@
+site_name: Syncret
+site_description: AWS Secrets Manager event handler for Lambda
+site_url: https://syncret.fayr.us
+repo_url: https://github.com/fayrus/syncret
+repo_name: fayrus/syncret
+
+docs_dir: .
+site_dir: ../site
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: blue
+    accent: cyan
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Configuration: configuration.md
+  - Deployment: deployment.md
+  - How it works: how-it-works.md
+  - Changelog: changelog.md

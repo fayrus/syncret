@@ -1,0 +1,10 @@
+# Folders
+.git/
+bin/
+docs/
+
+# Files
+*.md
+.gitignore
+Dockerfile
+Makefile
