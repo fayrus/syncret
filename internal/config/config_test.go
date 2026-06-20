@@ -13,10 +13,11 @@ func setEnv(t *testing.T, kvs map[string]string) {
 
 func baseEnv() map[string]string {
 	return map[string]string{
-		envSecretARN:        "arn:aws:secretsmanager:us-east-1:123:secret/prod/db",
-		envAWSRegion:        "us-east-1",
-		envTargetSecretARN:  "arn:aws:secretsmanager:us-east-1:123:secret/prod/target",
-		envTargetSecretKeys: "password",
+		envProvider:           "aws",
+		envAWSSecretARN:       "arn:aws:secretsmanager:us-east-1:123:secret/prod/db",
+		envAWSRegion:          "us-east-1",
+		envAWSTargetSecretARN: "arn:aws:secretsmanager:us-east-1:123:secret/prod/target",
+		envTargetSecretKeys:   "password",
 	}
 }
 
@@ -42,7 +43,7 @@ func TestLoad_missingRequired(t *testing.T) {
 		drop    string
 		wantErr string
 	}{
-		{"missing secret ARN", envSecretARN, envSecretARN},
+		{"missing secret ARN", envAWSSecretARN, envAWSSecretARN},
 		{"missing AWS region", envAWSRegion, envAWSRegion},
 		{"missing target secret keys when ARN set", envTargetSecretKeys, envTargetSecretKeys},
 	}
@@ -60,10 +61,43 @@ func TestLoad_missingRequired(t *testing.T) {
 	}
 }
 
+func TestLoad_provider(t *testing.T) {
+	t.Run("missing provider returns error", func(t *testing.T) {
+		env := baseEnv()
+		delete(env, envProvider)
+		setEnv(t, env)
+
+		_, err := Load()
+		if err == nil {
+			t.Fatal("Load() expected error for missing provider, got nil")
+		}
+	})
+
+	t.Run("unsupported provider returns error", func(t *testing.T) {
+		env := baseEnv()
+		env[envProvider] = "alibaba"
+		setEnv(t, env)
+
+		_, err := Load()
+		if err == nil {
+			t.Fatal("Load() expected error for unsupported provider, got nil")
+		}
+	})
+
+	t.Run("aws provider is valid", func(t *testing.T) {
+		setEnv(t, baseEnv())
+
+		_, err := Load()
+		if err != nil {
+			t.Fatalf("Load() unexpected error for aws provider: %v", err)
+		}
+	})
+}
+
 func TestLoad_atLeastOneAction(t *testing.T) {
 	t.Run("neither target secret nor ECS returns error", func(t *testing.T) {
 		env := baseEnv()
-		delete(env, envTargetSecretARN)
+		delete(env, envAWSTargetSecretARN)
 		delete(env, envTargetSecretKeys)
 		setEnv(t, env)
 
@@ -75,11 +109,11 @@ func TestLoad_atLeastOneAction(t *testing.T) {
 
 	t.Run("ECS only without target secret is valid", func(t *testing.T) {
 		env := baseEnv()
-		delete(env, envTargetSecretARN)
+		delete(env, envAWSTargetSecretARN)
 		delete(env, envTargetSecretKeys)
-		env[envECSForceDeploy] = "true"
-		env[envECSCluster] = "my-cluster"
-		env[envECSServices] = "app"
+		env[envAWSECSForceDeploy] = "true"
+		env[envAWSECSCluster] = "my-cluster"
+		env[envAWSECSServices] = "app"
 		setEnv(t, env)
 
 		_, err := Load()
@@ -150,9 +184,9 @@ func TestLoad_parseList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			env := baseEnv()
-			env[envECSForceDeploy] = "true"
-			env[envECSCluster] = "my-cluster"
-			env[envECSServices] = tt.services
+			env[envAWSECSForceDeploy] = "true"
+			env[envAWSECSCluster] = "my-cluster"
+			env[envAWSECSServices] = tt.services
 			env[envTargetSecretKeys] = tt.keys
 			setEnv(t, env)
 
@@ -239,7 +273,7 @@ func TestLoad_ecsForceDeploy(t *testing.T) {
 
 	t.Run("invalid bool returns error", func(t *testing.T) {
 		env := baseEnv()
-		env[envECSForceDeploy] = "yes"
+		env[envAWSECSForceDeploy] = "yes"
 		setEnv(t, env)
 
 		_, err := Load()
@@ -250,8 +284,8 @@ func TestLoad_ecsForceDeploy(t *testing.T) {
 
 	t.Run("enabled requires ECS cluster", func(t *testing.T) {
 		env := baseEnv()
-		env[envECSForceDeploy] = "true"
-		env[envECSServices] = "syncret-db"
+		env[envAWSECSForceDeploy] = "true"
+		env[envAWSECSServices] = "syncret-db"
 		setEnv(t, env)
 
 		_, err := Load()
@@ -262,8 +296,8 @@ func TestLoad_ecsForceDeploy(t *testing.T) {
 
 	t.Run("enabled requires ECS services", func(t *testing.T) {
 		env := baseEnv()
-		env[envECSForceDeploy] = "true"
-		env[envECSCluster] = "my-cluster"
+		env[envAWSECSForceDeploy] = "true"
+		env[envAWSECSCluster] = "my-cluster"
 		setEnv(t, env)
 
 		_, err := Load()
@@ -274,9 +308,9 @@ func TestLoad_ecsForceDeploy(t *testing.T) {
 
 	t.Run("enabled with single service", func(t *testing.T) {
 		env := baseEnv()
-		env[envECSForceDeploy] = "true"
-		env[envECSCluster] = "my-cluster"
-		env[envECSServices] = "syncret-db"
+		env[envAWSECSForceDeploy] = "true"
+		env[envAWSECSCluster] = "my-cluster"
+		env[envAWSECSServices] = "syncret-db"
 		setEnv(t, env)
 
 		cfg, err := Load()
@@ -290,9 +324,9 @@ func TestLoad_ecsForceDeploy(t *testing.T) {
 
 	t.Run("enabled with multiple services", func(t *testing.T) {
 		env := baseEnv()
-		env[envECSForceDeploy] = "true"
-		env[envECSCluster] = "my-cluster"
-		env[envECSServices] = "svc1,svc2,svc3"
+		env[envAWSECSForceDeploy] = "true"
+		env[envAWSECSCluster] = "my-cluster"
+		env[envAWSECSServices] = "svc1,svc2,svc3"
 		setEnv(t, env)
 
 		cfg, err := Load()

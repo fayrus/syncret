@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-19
+
+### Added
+
+- **`SYNCRET_PROVIDER`** — required variable that selects the cloud provider. Currently only `aws` is supported; unsupported values fail at startup.
+
+### Changed
+
+- **Breaking: environment variable renames** — all provider-specific variables now carry an explicit cloud prefix to clearly separate provider namespaces:
+  - `SYNCRET_SECRET_ARN` → `SYNCRET_AWS_SECRET_ARN`
+  - `SYNCRET_TARGET_SECRET_ARN` → `SYNCRET_AWS_TARGET_SECRET_ARN`
+  - `SYNCRET_ECS_FORCE_DEPLOY` → `SYNCRET_AWS_ECS_FORCE_DEPLOY`
+  - `SYNCRET_ECS_CLUSTER` → `SYNCRET_AWS_ECS_CLUSTER`
+  - `SYNCRET_ECS_SERVICES` → `SYNCRET_AWS_ECS_SERVICES`
+  - `SYNCRET_TARGET_SECRET_KEYS`, `SYNCRET_AWS_REGION`, `SYNCRET_LOG_LEVEL`, `SYNCRET_LOG_FORMAT` — unchanged
+- **Documentation restructure** — docs are now cloud-agnostic at the top level; provider-specific content lives under `Deployment — AWS`; `Configuration` page renamed to `Reference` with sections per provider
+
 ## [0.1.0] - 2026-06-15
 
 ### Added
@@ -27,5 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/fayrus/syncret/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fayrus/syncret/releases/tag/v0.1.0

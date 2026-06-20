@@ -1,5 +1,5 @@
 site_name: Syncret
-site_description: AWS Secrets Manager event handler for Lambda
+site_description: Automates follow-up actions when secrets rotate or change
 site_url: https://syncret.fayr.us
 repo_url: https://github.com/fayrus/syncret
 repo_name: fayrus/syncret
@@ -31,7 +31,9 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Configuration: configuration.md
-  - Deployment: deployment.md
   - How it works: how-it-works.md
+  - Reference: reference.md
+  - Deployment:
+      - Overview: deployment.md
+      - AWS: deployment/aws.md
   - Changelog: changelog.md

@@ -2,13 +2,13 @@
 
 ## Design principles
 
-**Event-driven and stateless.** Each Lambda invocation is independent. Syncret reads the event, performs the configured actions, and exits. No polling, no background tasks, no external state.
+**Event-driven and stateless.** Each function invocation is independent. Syncret reads the event, performs the configured actions, and exits. No polling, no background tasks, no external state.
 
-**Fire-and-forget for ECS.** Syncret calls `UpdateService` with `ForceNewDeployment=true` and does not wait for the deployment to stabilize. Monitoring deployment outcomes is out of scope and would unnecessarily extend Lambda execution time.
+**Fire-and-forget for service redeployment.** Syncret triggers a force redeployment and does not wait for it to stabilize. Monitoring deployment outcomes is out of scope and would unnecessarily extend execution time.
 
 **Fail fast on configuration.** All environment variables are validated at startup. Syncret exits immediately with an actionable error message rather than failing silently mid-execution.
 
-**No secrets in logs.** Secret values never appear in log output, error messages, or Lambda response payloads.
+**No secrets in logs.** Secret values never appear in log output, error messages, or response payloads.
 
 ---
 
@@ -16,16 +16,16 @@
 
 ```mermaid
 flowchart TD
-    A[EventBridge delivers payload] --> B["Parse event\neventName + secretARN"]
-    B --> C{"ARN matches\nSYNCRET_SECRET_ARN?"}
+    A[Event delivered] --> B["Parse event\ntype + secret identifier"]
+    B --> C{"Secret identifier matches\nSYNCRET_SECRET_ARN?"}
     C -->|No| Z[Error — rejected]
-    C -->|Yes| D{eventName}
-    D -->|RotationFailed| W["Log warning\nExit cleanly"]
-    D -->|"RotationSucceeded\nPutSecretValue"| E{"Target secret\nconfigured?"}
+    C -->|Yes| D{Event type}
+    D -->|Rotation failed| W["Log warning\nExit cleanly"]
+    D -->|"Rotation succeeded\nSecret updated"| E{"Target secret\nconfigured?"}
     E -->|Yes| F["Read source secret\nMerge fields into target\nWrite target secret"]
-    F --> G{"ECS force\ndeploy?"}
+    F --> G{"Service redeployment\nconfigured?"}
     E -->|No| G
-    G -->|Yes| H["DescribeServices — batch 10\nUpdateService per active service"]
+    G -->|Yes| H["Force redeployment\nper configured service"]
     G -->|No| I[Done]
     H --> I
 ```
@@ -35,11 +35,11 @@ flowchart TD
 ## Internal structure
 
 ```
-cmd/syncret/       → entrypoint: load config, init AWS clients, start Lambda handler
+cmd/syncret/       → entrypoint: load config, init provider clients, start handler
 internal/config/   → env var loading and validation; exits on any missing/invalid value
-internal/event/    → EventBridge/CloudTrail payload parser → typed Event struct
-internal/handler/  → orchestration: parse → validate ARN → [secret update] → [ECS]
-internal/aws/      → concrete AWS clients: SecretsManager, ECS
+internal/event/    → event payload parser → typed Event struct
+internal/handler/  → orchestration: parse → validate → [secret update] → [redeployment]
+internal/aws/      → AWS implementation: Secrets Manager, ECS
 internal/logctx/   → slog.Logger propagation via context.Context
 ```
 
@@ -47,7 +47,7 @@ internal/logctx/   → slog.Logger propagation via context.Context
 
 ## Provider abstraction
 
-The handler depends on two interfaces, not on AWS SDK types directly:
+The handler depends on two interfaces, not on any provider SDK types directly:
 
 ```go
 type SecretsProvider interface {
@@ -60,7 +60,15 @@ type ComputeProvider interface {
 }
 ```
 
-This makes the core logic testable without AWS credentials, and keeps the door open for alternative implementations.
+This makes the core logic testable without provider credentials, and keeps the door open for alternative implementations.
+
+---
+
+## Idempotency
+
+**Target secret writes** use a token derived from the target secret's current version. If the same event is delivered twice (at-least-once delivery is common in event systems), both invocations produce the same token and the same value — the second write is treated as a no-op.
+
+**Service redeployment** is idempotent at the provider level. Triggering a force redeployment on a service that already has a deployment in progress is safe.
 
 ---
 
@@ -78,29 +86,3 @@ The provider interfaces are designed to accommodate other clouds without changin
 | Compute | ECS | Container Apps | Cloud Run |
 
 Multi-cloud support is tracked as a v2+ item. The handler, config, and event parser packages would remain unchanged — only new implementations of `SecretsProvider` and `ComputeProvider` are needed per cloud.
-
----
-
-## Event parsing
-
-Syncret handles two distinct CloudTrail event shapes:
-
-**`RotationSucceeded`** — emitted by AWS as a Service Event. `requestParameters` is `null`; the secret ARN lives in `detail.additionalEventData.SecretId` (capital S).
-
-**`PutSecretValue`** — emitted as an API Call. The secret ARN is in `detail.requestParameters.secretId` (lowercase s).
-
-The parser resolves the ARN based on `eventName`, not `detail-type`, since `detail-type` has two valid values across the two use cases.
-
----
-
-## ARN validation
-
-After parsing, the handler rejects any event whose secret ARN does not match `SYNCRET_SECRET_ARN`. This is the primary defense against the EventBridge RDS rule, which fires on every `RotationSucceeded` in the account regardless of which secret rotated.
-
----
-
-## Idempotency
-
-**Target secret writes** use a `ClientRequestToken` derived from the target secret's current `VersionId`. If the same event is delivered twice by EventBridge (at-least-once delivery), both invocations produce the same token and the same `SecretString` — Secrets Manager treats the second write as a no-op.
-
-**ECS redeployment** is idempotent at the ECS level. Calling `UpdateService` with `ForceNewDeployment=true` on a service that already has a deployment in progress is safe — ECS handles it correctly.

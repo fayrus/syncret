@@ -50,23 +50,25 @@ Azure and GCP support is planned. Contributions welcome.
 Set environment variables on your Lambda function and deploy the container image.
 
 ```bash
+SYNCRET_PROVIDER=aws
+
 # Required — identifies which secret triggers Syncret
-SYNCRET_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf
+SYNCRET_AWS_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf
 SYNCRET_AWS_REGION=us-east-1
 
 # Action 1 — propagate fields to a dependent secret (optional)
-SYNCRET_TARGET_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app-secret-XyZaBc
+SYNCRET_AWS_TARGET_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app-secret-XyZaBc
 SYNCRET_TARGET_SECRET_KEYS=password          # or: password:DB_PASS  (src:dst remapping)
 
 # Action 2 — restart ECS services (optional)
-SYNCRET_ECS_FORCE_DEPLOY=true
-SYNCRET_ECS_CLUSTER=my-cluster
-SYNCRET_ECS_SERVICES=backend,worker
+SYNCRET_AWS_ECS_FORCE_DEPLOY=true
+SYNCRET_AWS_ECS_CLUSTER=my-cluster
+SYNCRET_AWS_ECS_SERVICES=backend,worker
 ```
 
-At least one action (`SYNCRET_TARGET_SECRET_ARN` or `SYNCRET_ECS_FORCE_DEPLOY=true`) must be set or Syncret will refuse to start.
+At least one action (`SYNCRET_AWS_TARGET_SECRET_ARN` or `SYNCRET_AWS_ECS_FORCE_DEPLOY=true`) must be set or Syncret will refuse to start.
 
-→ [Full configuration reference](docs/configuration.md)  
+→ [Full reference](docs/reference.md)  
 → [Step-by-step deployment guide](docs/deployment.md)
 
 ---
