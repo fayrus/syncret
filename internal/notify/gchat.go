@@ -46,7 +46,7 @@ func (g *GoogleChat) Send(ctx context.Context, p Payload) error {
 	if err != nil {
 		return fmt.Errorf("notify: gchat: send: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("notify: gchat: unexpected status %d", resp.StatusCode)
