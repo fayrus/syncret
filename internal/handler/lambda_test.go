@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fayrus/syncret/internal/config"
+	"github.com/fayrus/syncret/internal/notify"
 )
 
 func TestBuildNotifyPayload(t *testing.T) {
@@ -73,22 +74,26 @@ func TestBuildNotifyPayload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := buildNotifyPayload(tt.cfg, tt.payload, occurredAt, tt.err)
-
-			if p.EventName != tt.wantEvent {
-				t.Errorf("EventName = %q, want %q", p.EventName, tt.wantEvent)
-			}
-			if p.SecretARN != tt.wantSecret {
-				t.Errorf("SecretARN = %q, want %q", p.SecretARN, tt.wantSecret)
-			}
-			if len(p.Actions) != tt.wantActions {
-				t.Errorf("Actions = %v (len %d), want len %d", p.Actions, len(p.Actions), tt.wantActions)
-			}
-			if (p.Err != nil) != tt.wantErr {
-				t.Errorf("Err = %v, wantErr %v", p.Err, tt.wantErr)
-			}
-			if !p.OccurredAt.Equal(occurredAt) {
-				t.Errorf("OccurredAt = %v, want %v", p.OccurredAt, occurredAt)
-			}
+			assertNotifyPayload(t, p, tt.wantEvent, tt.wantSecret, tt.wantActions, tt.wantErr, occurredAt)
 		})
+	}
+}
+
+func assertNotifyPayload(t *testing.T, p notify.Payload, wantEvent, wantSecret string, wantActions int, wantErr bool, occurredAt time.Time) {
+	t.Helper()
+	if p.EventName != wantEvent {
+		t.Errorf("EventName = %q, want %q", p.EventName, wantEvent)
+	}
+	if p.SecretARN != wantSecret {
+		t.Errorf("SecretARN = %q, want %q", p.SecretARN, wantSecret)
+	}
+	if len(p.Actions) != wantActions {
+		t.Errorf("Actions = %v (len %d), want len %d", p.Actions, len(p.Actions), wantActions)
+	}
+	if (p.Err != nil) != wantErr {
+		t.Errorf("Err = %v, wantErr %v", p.Err, wantErr)
+	}
+	if !p.OccurredAt.Equal(occurredAt) {
+		t.Errorf("OccurredAt = %v, want %v", p.OccurredAt, occurredAt)
 	}
 }
