@@ -20,6 +20,8 @@ const (
 	envTargetSecretKeys = "SYNCRET_TARGET_SECRET_KEYS"
 	envLogLevel         = "SYNCRET_LOG_LEVEL"
 	envLogFormat        = "SYNCRET_LOG_FORMAT"
+
+	envGChatWebhook = "SYNCRET_GCHAT_WEBHOOK"
 )
 
 type Config struct {
@@ -36,6 +38,8 @@ type Config struct {
 
 	LogLevel  string
 	LogFormat string
+
+	GChatWebhook string
 }
 
 func Load() (*Config, error) {
@@ -49,6 +53,7 @@ func Load() (*Config, error) {
 		ECSCluster: os.Getenv(envAWSECSCluster),
 
 		TargetSecretARN: os.Getenv(envAWSTargetSecretARN),
+		GChatWebhook:    os.Getenv(envGChatWebhook),
 	}
 
 	var err error

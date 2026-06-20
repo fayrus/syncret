@@ -99,7 +99,7 @@ First, log in to ECR:
 
 ```bash
 ECR=123456789012.dkr.ecr.us-east-1.amazonaws.com/syncret
-VERSION=v0.2.0
+VERSION=v0.3.0
 
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -140,7 +140,7 @@ Replace `linux/arm64` with `linux/amd64` to target x86_64.
 aws lambda create-function \
   --function-name syncret-rds \
   --package-type Image \
-  --code ImageUri=123456789012.dkr.ecr.us-east-1.amazonaws.com/syncret:v0.2.0 \
+  --code ImageUri=123456789012.dkr.ecr.us-east-1.amazonaws.com/syncret:v0.3.0 \
   --architectures arm64 \
   --role arn:aws:iam::123456789012:role/syncret-execution-role \
   --timeout 60 \
