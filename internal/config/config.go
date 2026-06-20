@@ -8,20 +8,23 @@ import (
 )
 
 const (
-	envSecretARN      = "SYNCRET_SECRET_ARN"
-	envECSCluster     = "SYNCRET_ECS_CLUSTER"
-	envECSServices    = "SYNCRET_ECS_SERVICES"
-	envECSForceDeploy = "SYNCRET_ECS_FORCE_DEPLOY"
-	envAWSRegion      = "SYNCRET_AWS_REGION"
+	envProvider = "SYNCRET_PROVIDER"
 
-	envTargetSecretARN  = "SYNCRET_TARGET_SECRET_ARN"
+	envAWSSecretARN      = "SYNCRET_AWS_SECRET_ARN"
+	envAWSRegion         = "SYNCRET_AWS_REGION"
+	envAWSTargetSecretARN = "SYNCRET_AWS_TARGET_SECRET_ARN"
+	envAWSECSForceDeploy = "SYNCRET_AWS_ECS_FORCE_DEPLOY"
+	envAWSECSCluster     = "SYNCRET_AWS_ECS_CLUSTER"
+	envAWSECSServices    = "SYNCRET_AWS_ECS_SERVICES"
+
 	envTargetSecretKeys = "SYNCRET_TARGET_SECRET_KEYS"
-
-	envLogLevel  = "SYNCRET_LOG_LEVEL"
-	envLogFormat = "SYNCRET_LOG_FORMAT"
+	envLogLevel         = "SYNCRET_LOG_LEVEL"
+	envLogFormat        = "SYNCRET_LOG_FORMAT"
 )
 
 type Config struct {
+	Provider string
+
 	SecretARN      string
 	ECSCluster     string
 	ECSServices    []string
@@ -40,20 +43,21 @@ func Load() (*Config, error) {
 		LogLevel:  envOrDefault(envLogLevel, "info"),
 		LogFormat: envOrDefault(envLogFormat, "json"),
 
-		SecretARN:  os.Getenv(envSecretARN),
-		ECSCluster: os.Getenv(envECSCluster),
-		AWSRegion:  os.Getenv(envAWSRegion),
+		Provider:  os.Getenv(envProvider),
+		SecretARN: os.Getenv(envAWSSecretARN),
+		AWSRegion: os.Getenv(envAWSRegion),
+		ECSCluster: os.Getenv(envAWSECSCluster),
 
-		TargetSecretARN: os.Getenv(envTargetSecretARN),
+		TargetSecretARN: os.Getenv(envAWSTargetSecretARN),
 	}
 
 	var err error
-	cfg.ECSForceDeploy, err = parseBoolOrDefault(envECSForceDeploy, false)
+	cfg.ECSForceDeploy, err = parseBoolOrDefault(envAWSECSForceDeploy, false)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.ECSServices = parseList(os.Getenv(envECSServices))
+	cfg.ECSServices = parseList(os.Getenv(envAWSECSServices))
 	cfg.TargetSecretKeys = parseList(os.Getenv(envTargetSecretKeys))
 
 	if err := cfg.validate(); err != nil {
@@ -63,8 +67,13 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) validate() error {
+	validProviders := map[string]bool{"aws": true}
+	if !validProviders[c.Provider] {
+		return fmt.Errorf("config: invalid %s %q: supported values: aws", envProvider, c.Provider)
+	}
+
 	for _, r := range []struct{ name, value string }{
-		{envSecretARN, c.SecretARN},
+		{envAWSSecretARN, c.SecretARN},
 		{envAWSRegion, c.AWSRegion},
 	} {
 		if r.value == "" {
@@ -73,11 +82,11 @@ func (c *Config) validate() error {
 	}
 
 	if c.TargetSecretARN != "" && len(c.TargetSecretKeys) == 0 {
-		return fmt.Errorf("config: %s is required when %s is set", envTargetSecretKeys, envTargetSecretARN)
+		return fmt.Errorf("config: %s is required when %s is set", envTargetSecretKeys, envAWSTargetSecretARN)
 	}
 
 	if c.TargetSecretARN == "" && !c.ECSForceDeploy {
-		return fmt.Errorf("config: at least one of %s or %s=true must be configured", envTargetSecretARN, envECSForceDeploy)
+		return fmt.Errorf("config: at least one of %s or %s=true must be configured", envAWSTargetSecretARN, envAWSECSForceDeploy)
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
@@ -91,10 +100,10 @@ func (c *Config) validate() error {
 
 	if c.ECSForceDeploy {
 		if c.ECSCluster == "" {
-			return fmt.Errorf("config: %s is required when %s is true", envECSCluster, envECSForceDeploy)
+			return fmt.Errorf("config: %s is required when %s is true", envAWSECSCluster, envAWSECSForceDeploy)
 		}
 		if len(c.ECSServices) == 0 {
-			return fmt.Errorf("config: %s is required when %s is true", envECSServices, envECSForceDeploy)
+			return fmt.Errorf("config: %s is required when %s is true", envAWSECSServices, envAWSECSForceDeploy)
 		}
 	}
 
