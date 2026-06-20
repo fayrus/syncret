@@ -46,3 +46,26 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 \* At least one of `SYNCRET_AWS_TARGET_SECRET_ARN` or `SYNCRET_AWS_ECS_FORCE_DEPLOY=true` must be set.
 
 → See [Deployment — AWS](deployment/aws.md) for step-by-step setup and full configuration examples.
+
+---
+
+## Google Chat
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SYNCRET_GCHAT_WEBHOOK` | No | — | Incoming webhook URL. When set, Syncret sends a notification after every execution — success and failure. |
+
+**Message format:**
+
+```
+*Syncret* — RotationSucceeded
+
+*Date:*    2026-06-20 18:06:17 UTC
+*Secret:*  arn:aws:...:secret:my-db-secret
+*Actions:*
+  • Target secret updated
+  • ECS redeployment: backend, worker
+*Status:*  ✅ Success
+```
+
+On failure, `*Status:*` shows `❌ Failed` and an `*Error:*` line is appended with the error message. If the notification itself fails, Syncret logs a warning and returns normally — the Lambda execution is not affected.

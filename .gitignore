@@ -1,21 +1,9 @@
 # Folders
-.events
 .idea
 bin
 site
 
 # Files
+*.out
 *-resume
 .*.md
-syncrtet
-
-# AI related filesi
-*.out
-.agents
-.claude
-.cursor
-AGENTS.md
-CLAUDE.md
-CURSOR.md
-codex.md
-skills-lock.json

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-19
+
+### Added
+
+- **Google Chat notifications** — optional `SYNCRET_GCHAT_WEBHOOK` variable. When set, Syncret sends a notification after every execution (success and failure) with the event type, secret ARN, actions taken, status, and error message on failure. Notification failures are logged as warnings and do not affect the Lambda return value.
+
 ## [0.2.0] - 2026-06-19
 
 ### Added
@@ -44,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/fayrus/syncret/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/fayrus/syncret/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fayrus/syncret/releases/tag/v0.1.0
