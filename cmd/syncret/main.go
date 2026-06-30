@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	_ "time/tzdata"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"

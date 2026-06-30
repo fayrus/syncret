@@ -5,21 +5,25 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 )
 
 const (
 	envProvider = "SYNCRET_PROVIDER"
 
-	envAWSSecretARN      = "SYNCRET_AWS_SECRET_ARN"
-	envAWSRegion         = "SYNCRET_AWS_REGION"
+	envAWSSecretARN       = "SYNCRET_AWS_SECRET_ARN"
+	envAWSRegion          = "SYNCRET_AWS_REGION"
 	envAWSTargetSecretARN = "SYNCRET_AWS_TARGET_SECRET_ARN"
-	envAWSECSForceDeploy = "SYNCRET_AWS_ECS_FORCE_DEPLOY"
-	envAWSECSCluster     = "SYNCRET_AWS_ECS_CLUSTER"
-	envAWSECSServices    = "SYNCRET_AWS_ECS_SERVICES"
+	envAWSECSForceDeploy  = "SYNCRET_AWS_ECS_FORCE_DEPLOY"
+	envAWSECSCluster      = "SYNCRET_AWS_ECS_CLUSTER"
+	envAWSECSServices     = "SYNCRET_AWS_ECS_SERVICES"
 
 	envTargetSecretKeys = "SYNCRET_TARGET_SECRET_KEYS"
 	envLogLevel         = "SYNCRET_LOG_LEVEL"
 	envLogFormat        = "SYNCRET_LOG_FORMAT"
+	envInstanceName     = "SYNCRET_INSTANCE_NAME"
+	envTimezone         = "SYNCRET_TIMEZONE"
 
 	envGChatWebhook = "SYNCRET_GCHAT_WEBHOOK"
 )
@@ -39,17 +43,22 @@ type Config struct {
 	LogLevel  string
 	LogFormat string
 
+	InstanceName string
+	Timezone     string
+
 	GChatWebhook string
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		LogLevel:  envOrDefault(envLogLevel, "info"),
-		LogFormat: envOrDefault(envLogFormat, "json"),
+		LogLevel:     envOrDefault(envLogLevel, "info"),
+		LogFormat:    envOrDefault(envLogFormat, "json"),
+		InstanceName: os.Getenv(envInstanceName),
+		Timezone:     envOrDefault(envTimezone, "UTC"),
 
-		Provider:  os.Getenv(envProvider),
-		SecretARN: os.Getenv(envAWSSecretARN),
-		AWSRegion: os.Getenv(envAWSRegion),
+		Provider:   os.Getenv(envProvider),
+		SecretARN:  os.Getenv(envAWSSecretARN),
+		AWSRegion:  os.Getenv(envAWSRegion),
 		ECSCluster: os.Getenv(envAWSECSCluster),
 
 		TargetSecretARN: os.Getenv(envAWSTargetSecretARN),
@@ -101,6 +110,13 @@ func (c *Config) validate() error {
 	validLogFormats := map[string]bool{"json": true, "text": true}
 	if !validLogFormats[c.LogFormat] {
 		return fmt.Errorf("config: invalid %s %q: must be json or text", envLogFormat, c.LogFormat)
+	}
+
+	if strings.ContainsAny(c.InstanceName, "\r\n") || utf8.RuneCountInString(c.InstanceName) > 64 {
+		return fmt.Errorf("config: invalid %s: must be a single line of at most 64 characters", envInstanceName)
+	}
+	if _, err := time.LoadLocation(c.Timezone); err != nil {
+		return fmt.Errorf("config: invalid %s %q: %w", envTimezone, c.Timezone, err)
 	}
 
 	if c.ECSForceDeploy {
