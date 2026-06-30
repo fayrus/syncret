@@ -16,6 +16,8 @@ These variables apply regardless of cloud provider.
 | `SYNCRET_TARGET_SECRET_KEYS` | No* | — | Comma-separated list of fields to copy from source to target secret. Required when `SYNCRET_AWS_TARGET_SECRET_ARN` is set. Use `key` to copy under the same name, or `source_key:target_key` to remap. |
 | `SYNCRET_LOG_LEVEL` | No | `info` | Log verbosity: `debug`, `info`, `warn`, `error`. Invalid values fail at startup. |
 | `SYNCRET_LOG_FORMAT` | No | `json` | Log format: `json` for production, `text` for local development. Invalid values fail at startup. |
+| `SYNCRET_INSTANCE_NAME` | No | — | Human-readable name for this Syncret deployment, shown in notifications. Must be a single line of at most 64 characters. |
+| `SYNCRET_TIMEZONE` | No | `UTC` | IANA timezone used in notifications, such as `America/Lima` or `America/New_York`. Invalid zones fail at startup. |
 
 **`SYNCRET_TARGET_SECRET_KEYS` examples:**
 
@@ -58,14 +60,23 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 **Message format:**
 
 ```
-*Syncret* — RotationSucceeded
+*Syncret — Production*
 
-*Date:*    2026-06-20 18:06:17 UTC
-*Secret:*  arn:aws:...:secret:my-db-secret
+*Event:* RotationSucceeded
+*Account:* 123456789012
+*Region:* us-east-1
+*Source secret:* source-secret
+*Target secret:* target-secret
+*ECS cluster:* production
+*ECS services:* backend
+*Date:* 2026-06-20 13:06:17 -05:00 (America/Lima)
+*Request ID:* 00000000-0000-0000-0000-000000000000
 *Actions:*
-  • Target secret updated
-  • ECS redeployment: backend, worker
+  • ✅ Target secret updated
+  • ✅ ECS force-deployment request accepted
 *Status:*  ✅ Success
 ```
 
-On failure, `*Status:*` shows `❌ Failed` and an `*Error:*` line is appended with the error message. If the notification itself fails, Syncret logs a warning and returns normally — the Lambda execution is not affected.
+Optional resource fields are omitted when they are not configured. `ECS force-deployment request accepted` means ECS accepted `UpdateService` with `ForceNewDeployment=true`; Syncret does not wait for the deployment to stabilize.
+
+On failure, each action is reported as failed, skipped, or not attempted. The notification contains a sanitized error and the Lambda request ID; technical details remain in CloudWatch Logs. If the notification itself fails, Syncret logs a warning and preserves the Lambda's original result.
