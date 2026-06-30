@@ -99,7 +99,7 @@ First, log in to ECR:
 
 ```bash
 ECR=123456789012.dkr.ecr.us-east-1.amazonaws.com/syncret
-VERSION=v0.3.0
+VERSION=latest
 
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -140,7 +140,7 @@ Replace `linux/arm64` with `linux/amd64` to target x86_64.
 aws lambda create-function \
   --function-name syncret-rds \
   --package-type Image \
-  --code ImageUri=123456789012.dkr.ecr.us-east-1.amazonaws.com/syncret:v0.3.0 \
+  --code ImageUri=$ECR:$VERSION \
   --architectures arm64 \
   --role arn:aws:iam::123456789012:role/syncret-execution-role \
   --timeout 60 \
@@ -153,7 +153,9 @@ aws lambda create-function \
     SYNCRET_TARGET_SECRET_KEYS=password,
     SYNCRET_AWS_ECS_FORCE_DEPLOY=true,
     SYNCRET_AWS_ECS_CLUSTER=my-cluster,
-    SYNCRET_AWS_ECS_SERVICES=backend,worker
+    SYNCRET_AWS_ECS_SERVICES=backend,
+    SYNCRET_INSTANCE_NAME=Production,
+    SYNCRET_TIMEZONE=America/Lima
   }'
 ```
 
@@ -259,7 +261,9 @@ SYNCRET_AWS_TARGET_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secr
 SYNCRET_TARGET_SECRET_KEYS=password
 SYNCRET_AWS_ECS_FORCE_DEPLOY=true
 SYNCRET_AWS_ECS_CLUSTER=my-cluster
-SYNCRET_AWS_ECS_SERVICES=backend,worker
+SYNCRET_AWS_ECS_SERVICES=backend
+SYNCRET_INSTANCE_NAME="Production"
+SYNCRET_TIMEZONE=America/Lima
 SYNCRET_LOG_LEVEL=info
 SYNCRET_LOG_FORMAT=json
 ```

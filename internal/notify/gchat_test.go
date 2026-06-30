@@ -2,7 +2,6 @@ package notify
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,42 +19,86 @@ func TestFormat(t *testing.T) {
 		absent   []string
 	}{
 		{
-			name: "success with all actions",
+			name: "success includes instance resources and localized date",
 			payload: Payload{
-				EventName:  "RotationSucceeded",
-				SecretARN:  "arn:aws:secretsmanager:us-east-1:123:secret/db",
-				Actions:    []string{"Target secret updated", "ECS redeployment: backend, worker"},
-				OccurredAt: testTime,
+				InstanceName: "V4 Production",
+				EventName:    "RotationSucceeded",
+				AccountID:    "123456789012",
+				Region:       "us-east-1",
+				SourceSecret: "example-source",
+				TargetSecret: "example-target",
+				ECSCluster:   "my-cluster",
+				ECSServices:  []string{"backend", "worker"},
+				RequestID:    "request-123",
+				Actions: []string{
+					"✅ Target secret updated",
+					"✅ ECS force-deployment request accepted",
+				},
+				Status:       StatusSuccess,
+				OccurredAt:   testTime,
+				TimezoneName: "America/Lima",
 			},
 			contains: []string{
+				"Syncret — V4 Production",
 				"RotationSucceeded",
-				"2026-06-20 18:06:17 UTC",
-				"arn:aws:secretsmanager:us-east-1:123:secret/db",
-				"Target secret updated",
-				"ECS redeployment: backend, worker",
+				"123456789012",
+				"us-east-1",
+				"example-source",
+				"example-target",
+				"my-cluster",
+				"backend, worker",
+				"2026-06-20 13:06:17 -05:00 (America/Lima)",
+				"request-123",
+				"✅ Target secret updated",
+				"✅ ECS force-deployment request accepted",
 				"✅ Success",
 			},
+			absent: []string{"arn:aws:"},
 		},
 		{
-			name: "failure includes error message",
+			name: "failure includes sanitized error and event secret mismatch",
 			payload: Payload{
-				EventName:  "RotationSucceeded",
-				SecretARN:  "arn:aws:secretsmanager:us-east-1:123:secret/db",
-				Err:        errors.New("ecs: service not found"),
-				OccurredAt: testTime,
+				EventName:    "PutSecretValue",
+				SourceSecret: "configured-source",
+				EventSecret:  "unexpected-source",
+				RequestID:    "request-456",
+				Actions:      []string{"❌ Event rejected by source secret guard"},
+				Status:       StatusFailed,
+				ErrorMessage: "Event secret does not match the configured source secret; see Lambda logs using the request ID",
+				OccurredAt:   testTime,
+				TimezoneName: "UTC",
 			},
-			contains: []string{"❌ Failed", "ecs: service not found"},
-			absent:   []string{"✅ Success"},
+			contains: []string{
+				"configured-source",
+				"unexpected-source",
+				"request-456",
+				"❌ Failed",
+				"Event secret does not match",
+			},
+			absent: []string{"✅ Success"},
 		},
 		{
-			name: "no actions section when actions empty",
+			name: "skipped status omits optional resources",
 			payload: Payload{
-				EventName:  "RotationFailed",
-				SecretARN:  "arn:aws:secretsmanager:us-east-1:123:secret/db",
-				OccurredAt: testTime,
+				EventName:    "RotationFailed",
+				SourceSecret: "example-source",
+				Status:       StatusSkipped,
+				OccurredAt:   testTime,
+				TimezoneName: "UTC",
 			},
-			contains: []string{"RotationFailed", "✅ Success"},
-			absent:   []string{"*Actions:*"},
+			contains: []string{"RotationFailed", "⚠️ Skipped"},
+			absent:   []string{"*Actions:*", "*Target secret:*", "*ECS cluster:*", "*ECS services:*"},
+		},
+		{
+			name: "New York timezone applies daylight saving offset",
+			payload: Payload{
+				EventName:    "PutSecretValue",
+				SourceSecret: "example-source",
+				Status:       StatusSuccess,
+				OccurredAt:   testTime,
+				TimezoneName: "America/New_York",
+			},
+			contains: []string{"2026-06-20 14:06:17 -04:00 (America/New_York)"},
 		},
 	}
 
@@ -92,7 +135,7 @@ func TestGoogleChat_Send(t *testing.T) {
 		gc := NewGoogleChat(srv.URL)
 		err := gc.Send(context.Background(), Payload{
 			EventName:  "RotationSucceeded",
-			SecretARN:  "arn:x",
+			Status:     StatusSuccess,
 			OccurredAt: testTime,
 		})
 		if err != nil {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -34,6 +35,12 @@ func TestLoad_defaults(t *testing.T) {
 	}
 	if cfg.LogFormat != "json" {
 		t.Errorf("LogFormat = %q, want json", cfg.LogFormat)
+	}
+	if cfg.Timezone != "UTC" {
+		t.Errorf("Timezone = %q, want UTC", cfg.Timezone)
+	}
+	if cfg.InstanceName != "" {
+		t.Errorf("InstanceName = %q, want empty", cfg.InstanceName)
 	}
 }
 
@@ -256,6 +263,72 @@ func TestLoad_logConfig(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestLoad_notificationContext(t *testing.T) {
+	tests := []struct {
+		name         string
+		instanceName string
+		timezone     string
+		wantErr      bool
+	}{
+		{
+			name:         "instance name and Lima timezone are accepted",
+			instanceName: "V4 Production",
+			timezone:     "America/Lima",
+		},
+		{
+			name:         "New York timezone is accepted",
+			instanceName: "US Production",
+			timezone:     "America/New_York",
+		},
+		{
+			name:     "invalid timezone is rejected",
+			timezone: "Mars/Olympus_Mons",
+			wantErr:  true,
+		},
+		{
+			name:         "multiline instance name is rejected",
+			instanceName: "Production\nInjected",
+			timezone:     "UTC",
+			wantErr:      true,
+		},
+		{
+			name:         "carriage return alone in instance name is rejected",
+			instanceName: "Production\rInjected",
+			timezone:     "UTC",
+			wantErr:      true,
+		},
+		{
+			name:         "instance name longer than 64 characters is rejected",
+			instanceName: strings.Repeat("a", 65),
+			timezone:     "UTC",
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := baseEnv()
+			env[envInstanceName] = tt.instanceName
+			env[envTimezone] = tt.timezone
+			setEnv(t, env)
+
+			cfg, err := Load()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if cfg.InstanceName != tt.instanceName {
+				t.Errorf("InstanceName = %q, want %q", cfg.InstanceName, tt.instanceName)
+			}
+			if cfg.Timezone != tt.timezone {
+				t.Errorf("Timezone = %q, want %q", cfg.Timezone, tt.timezone)
+			}
+		})
+	}
 }
 
 func TestLoad_ecsForceDeploy(t *testing.T) {

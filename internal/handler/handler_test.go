@@ -264,3 +264,100 @@ func TestHandle(t *testing.T) {
 		})
 	}
 }
+
+func TestExecute_resultTracksPipelineStages(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     []byte
+		getErr      error
+		putErr      error
+		ecsErr      error
+		wantErr     bool
+		wantTarget  stageStatus
+		wantECS     stageStatus
+		wantFailure failureKind
+	}{
+		{
+			name:       "all configured stages succeed",
+			payload:    serviceEvent("RotationSucceeded", sourceARN),
+			wantTarget: stageSucceeded,
+			wantECS:    stageSucceeded,
+		},
+		{
+			name:        "source read failure prevents later stages",
+			payload:     serviceEvent("RotationSucceeded", sourceARN),
+			getErr:      errors.New("access denied"),
+			wantErr:     true,
+			wantTarget:  stageNotAttempted,
+			wantECS:     stageNotAttempted,
+			wantFailure: failureSourceRead,
+		},
+		{
+			name:        "target update failure prevents ECS request",
+			payload:     serviceEvent("RotationSucceeded", sourceARN),
+			putErr:      errors.New("throttled"),
+			wantErr:     true,
+			wantTarget:  stageFailed,
+			wantECS:     stageNotAttempted,
+			wantFailure: failureTargetUpdate,
+		},
+		{
+			name:        "ECS request failure preserves completed target update",
+			payload:     serviceEvent("RotationSucceeded", sourceARN),
+			ecsErr:      errors.New("unavailable"),
+			wantErr:     true,
+			wantTarget:  stageSucceeded,
+			wantECS:     stageFailed,
+			wantFailure: failureECSForceDeploy,
+		},
+		{
+			name:       "rotation failure skips configured stages",
+			payload:    serviceEvent("RotationFailed", sourceARN),
+			wantTarget: stageSkipped,
+			wantECS:    stageSkipped,
+		},
+		{
+			name:        "invalid event leaves configured stages unattempted",
+			payload:     []byte(`{bad json}`),
+			wantErr:     true,
+			wantTarget:  stageNotAttempted,
+			wantECS:     stageNotAttempted,
+			wantFailure: failureEventParse,
+		},
+		{
+			name:        "ARN mismatch leaves configured stages unattempted",
+			payload:     serviceEvent("RotationSucceeded", "arn:aws:secretsmanager:us-east-1:123:secret/unexpected"),
+			wantErr:     true,
+			wantTarget:  stageNotAttempted,
+			wantECS:     stageNotAttempted,
+			wantFailure: failureARNGuard,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := withECS(baseConfig(), "backend", "worker")
+			sm := &mockSecrets{
+				values: map[string]string{sourceARN: `{"password":"new"}`},
+				getErr: tt.getErr,
+				putErr: tt.putErr,
+			}
+			ecsClient := &mockECS{updateErr: tt.ecsErr}
+
+			result, err := execute(context.Background(), cfg, tt.payload, makeDeps(sm, ecsClient))
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("execute() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if result.TargetUpdate != tt.wantTarget {
+				t.Errorf("TargetUpdate = %q, want %q", result.TargetUpdate, tt.wantTarget)
+			}
+			if result.ECSForceDeploy != tt.wantECS {
+				t.Errorf("ECSForceDeploy = %q, want %q", result.ECSForceDeploy, tt.wantECS)
+			}
+			if result.Failure != tt.wantFailure {
+				t.Errorf("Failure = %q, want %q", result.Failure, tt.wantFailure)
+			}
+		})
+	}
+}

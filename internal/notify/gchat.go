@@ -11,12 +11,30 @@ import (
 )
 
 type Payload struct {
-	EventName  string
-	SecretARN  string
-	Actions    []string
-	Err        error
-	OccurredAt time.Time
+	InstanceName string
+	EventName    string
+	AccountID    string
+	Region       string
+	SourceSecret string
+	EventSecret  string
+	TargetSecret string
+	ECSCluster   string
+	ECSServices  []string
+	RequestID    string
+	Actions      []string
+	Status       Status
+	ErrorMessage string
+	OccurredAt   time.Time
+	TimezoneName string
 }
+
+type Status string
+
+const (
+	StatusSuccess Status = "✅ Success"
+	StatusFailed  Status = "❌ Failed"
+	StatusSkipped Status = "⚠️ Skipped"
+)
 
 type GoogleChat struct {
 	webhookURL string
@@ -54,16 +72,59 @@ func (g *GoogleChat) Send(ctx context.Context, p Payload) error {
 	return nil
 }
 
+func formatHeader(instanceName string) string {
+	if instanceName == "" {
+		return "*Syncret*\n\n"
+	}
+	return fmt.Sprintf("*Syncret — %s*\n\n", instanceName)
+}
+
 func format(p Payload) string {
-	status := "✅ Success"
-	if p.Err != nil {
-		status = "❌ Failed"
+	status := p.Status
+	if status == "" {
+		status = StatusSuccess
+	}
+	timezoneName := p.TimezoneName
+	if timezoneName == "" {
+		timezoneName = "UTC"
+	}
+	location, err := time.LoadLocation(timezoneName)
+	if err != nil {
+		timezoneName = "UTC"
+		location = time.UTC
 	}
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "*Syncret* — %s\n\n", p.EventName)
-	fmt.Fprintf(&sb, "*Date:*    %s\n", p.OccurredAt.UTC().Format("2006-01-02 15:04:05 UTC"))
-	fmt.Fprintf(&sb, "*Secret:*  %s\n", p.SecretARN)
+	sb.WriteString(formatHeader(p.InstanceName))
+	fmt.Fprintf(&sb, "*Event:* %s\n", p.EventName)
+	if p.AccountID != "" {
+		fmt.Fprintf(&sb, "*Account:* %s\n", p.AccountID)
+	}
+	if p.Region != "" {
+		fmt.Fprintf(&sb, "*Region:* %s\n", p.Region)
+	}
+	if p.SourceSecret != "" {
+		fmt.Fprintf(&sb, "*Source secret:* %s\n", p.SourceSecret)
+	}
+	if p.EventSecret != "" {
+		fmt.Fprintf(&sb, "*Event secret:* %s\n", p.EventSecret)
+	}
+	if p.TargetSecret != "" {
+		fmt.Fprintf(&sb, "*Target secret:* %s\n", p.TargetSecret)
+	}
+	if p.ECSCluster != "" {
+		fmt.Fprintf(&sb, "*ECS cluster:* %s\n", p.ECSCluster)
+	}
+	if len(p.ECSServices) > 0 {
+		fmt.Fprintf(&sb, "*ECS services:* %s\n", strings.Join(p.ECSServices, ", "))
+	}
+	fmt.Fprintf(&sb, "*Date:* %s (%s)\n",
+		p.OccurredAt.In(location).Format("2006-01-02 15:04:05 -07:00"),
+		timezoneName,
+	)
+	if p.RequestID != "" {
+		fmt.Fprintf(&sb, "*Request ID:* %s\n", p.RequestID)
+	}
 	if len(p.Actions) > 0 {
 		sb.WriteString("*Actions:*\n")
 		for _, a := range p.Actions {
@@ -71,8 +132,8 @@ func format(p Payload) string {
 		}
 	}
 	fmt.Fprintf(&sb, "*Status:*  %s", status)
-	if p.Err != nil {
-		fmt.Fprintf(&sb, "\n*Error:*   %s", p.Err.Error())
+	if p.ErrorMessage != "" {
+		fmt.Fprintf(&sb, "\n*Error:*   %s", p.ErrorMessage)
 	}
 	return sb.String()
 }
