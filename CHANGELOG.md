@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-30
+
+### Added
+
+- **`SYNCRET_INSTANCE_NAME`** — optional human-readable label for the deployment, shown in notification headers (e.g., `*Syncret — Production*`). Must be a single line of at most 64 characters.
+- **`SYNCRET_TIMEZONE`** — optional IANA timezone for notification timestamps (e.g., `America/Lima`). Defaults to `UTC`. Invalid zones fail at startup. Timezone data is embedded in the binary via `time/tzdata` for Lambda environments.
+- **Enriched GChat notifications** — messages now include AWS account ID, region, source and target secret names (extracted from ARNs), ECS cluster and services, Lambda request ID, and a localized timestamp. Each pipeline stage (target secret update, ECS force-deployment) is reported individually with its outcome (succeeded, failed, skipped, or not attempted). Errors shown in notifications are sanitized; raw details remain in CloudWatch Logs.
+
 ## [0.3.0] - 2026-06-19
 
 ### Added
@@ -50,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/fayrus/syncret/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/fayrus/syncret/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/fayrus/syncret/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fayrus/syncret/releases/tag/v0.1.0
