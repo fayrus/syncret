@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	_ "time/tzdata"
+	_ "time/tzdata" // embedded for Lambda environments without a timezone database
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"

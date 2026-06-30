@@ -72,6 +72,13 @@ func (g *GoogleChat) Send(ctx context.Context, p Payload) error {
 	return nil
 }
 
+func formatHeader(instanceName string) string {
+	if instanceName == "" {
+		return "*Syncret*\n\n"
+	}
+	return fmt.Sprintf("*Syncret — %s*\n\n", instanceName)
+}
+
 func format(p Payload) string {
 	status := p.Status
 	if status == "" {
@@ -88,11 +95,7 @@ func format(p Payload) string {
 	}
 
 	var sb strings.Builder
-	if p.InstanceName == "" {
-		sb.WriteString("*Syncret*\n\n")
-	} else {
-		fmt.Fprintf(&sb, "*Syncret — %s*\n\n", p.InstanceName)
-	}
+	sb.WriteString(formatHeader(p.InstanceName))
 	fmt.Fprintf(&sb, "*Event:* %s\n", p.EventName)
 	if p.AccountID != "" {
 		fmt.Fprintf(&sb, "*Account:* %s\n", p.AccountID)

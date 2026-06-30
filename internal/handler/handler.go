@@ -86,12 +86,7 @@ func execute(ctx context.Context, cfg *config.Config, payload []byte, deps Depen
 
 	if !evt.ShouldRedeploy() {
 		log.Warn("rotation failed — skipping target update", "secret_arn", cfg.SecretARN)
-		if cfg.TargetSecretARN != "" {
-			result.TargetUpdate = stageSkipped
-		}
-		if cfg.ECSForceDeploy {
-			result.ECSForceDeploy = stageSkipped
-		}
+		markSkipped(&result, cfg)
 		return result, nil
 	}
 
@@ -119,6 +114,15 @@ func execute(ctx context.Context, cfg *config.Config, payload []byte, deps Depen
 	}
 
 	return result, nil
+}
+
+func markSkipped(result *executionResult, cfg *config.Config) {
+	if cfg.TargetSecretARN != "" {
+		result.TargetUpdate = stageSkipped
+	}
+	if cfg.ECSForceDeploy {
+		result.ECSForceDeploy = stageSkipped
+	}
 }
 
 func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvider, secretValue string) error {

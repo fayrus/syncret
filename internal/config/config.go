@@ -119,15 +119,19 @@ func (c *Config) validate() error {
 		return fmt.Errorf("config: invalid %s %q: %w", envTimezone, c.Timezone, err)
 	}
 
-	if c.ECSForceDeploy {
-		if c.ECSCluster == "" {
-			return fmt.Errorf("config: %s is required when %s is true", envAWSECSCluster, envAWSECSForceDeploy)
-		}
-		if len(c.ECSServices) == 0 {
-			return fmt.Errorf("config: %s is required when %s is true", envAWSECSServices, envAWSECSForceDeploy)
-		}
-	}
+	return c.validateECSConfig()
+}
 
+func (c *Config) validateECSConfig() error {
+	if !c.ECSForceDeploy {
+		return nil
+	}
+	if c.ECSCluster == "" {
+		return fmt.Errorf("config: %s is required when %s is true", envAWSECSCluster, envAWSECSForceDeploy)
+	}
+	if len(c.ECSServices) == 0 {
+		return fmt.Errorf("config: %s is required when %s is true", envAWSECSServices, envAWSECSForceDeploy)
+	}
 	return nil
 }
 

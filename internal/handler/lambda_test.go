@@ -18,6 +18,48 @@ func notificationConfig() *config.Config {
 	return cfg
 }
 
+func TestBuildNotifyPayload_context(t *testing.T) {
+	occurredAt := time.Date(2026, 6, 20, 18, 0, 0, 0, time.UTC)
+	result := executionResult{
+		EventName:      event.RotationSucceeded,
+		EventSecretARN: sourceARN,
+		TargetUpdate:   stageSucceeded,
+		ECSForceDeploy: stageSucceeded,
+	}
+	p := buildNotifyPayload(notificationConfig(), result, occurredAt, "request-123", nil)
+
+	if p.InstanceName != "V4 Production" {
+		t.Errorf("InstanceName = %q, want V4 Production", p.InstanceName)
+	}
+	if p.AccountID != "123" {
+		t.Errorf("AccountID = %q, want 123", p.AccountID)
+	}
+	if p.Region != "us-east-1" {
+		t.Errorf("Region = %q, want us-east-1", p.Region)
+	}
+	if p.SourceSecret != "source" {
+		t.Errorf("SourceSecret = %q, want source", p.SourceSecret)
+	}
+	if p.TargetSecret != "target" {
+		t.Errorf("TargetSecret = %q, want target", p.TargetSecret)
+	}
+	if p.ECSCluster != "my-cluster" {
+		t.Errorf("ECSCluster = %q, want my-cluster", p.ECSCluster)
+	}
+	if strings.Join(p.ECSServices, ",") != "backend,worker" {
+		t.Errorf("ECSServices = %v, want [backend worker]", p.ECSServices)
+	}
+	if p.RequestID != "request-123" {
+		t.Errorf("RequestID = %q, want request-123", p.RequestID)
+	}
+	if !p.OccurredAt.Equal(occurredAt) {
+		t.Errorf("OccurredAt = %v, want %v", p.OccurredAt, occurredAt)
+	}
+	if p.TimezoneName != "America/Lima" {
+		t.Errorf("TimezoneName = %q, want America/Lima", p.TimezoneName)
+	}
+}
+
 func TestBuildNotifyPayload(t *testing.T) {
 	occurredAt := time.Date(2026, 6, 20, 18, 0, 0, 0, time.UTC)
 
@@ -158,43 +200,29 @@ func TestBuildNotifyPayload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := buildNotifyPayload(notificationConfig(), tt.result, occurredAt, "request-123", tt.err)
-
-			if p.InstanceName != "V4 Production" {
-				t.Errorf("InstanceName = %q, want V4 Production", p.InstanceName)
-			}
-			if p.EventName != tt.wantEvent {
-				t.Errorf("EventName = %q, want %q", p.EventName, tt.wantEvent)
-			}
-			if p.AccountID != "123" || p.Region != "us-east-1" {
-				t.Errorf("AWS identity = %s/%s, want 123/us-east-1", p.AccountID, p.Region)
-			}
-			if p.SourceSecret != "source" || p.TargetSecret != "target" {
-				t.Errorf("secrets = %q/%q, want source/target", p.SourceSecret, p.TargetSecret)
-			}
-			if p.EventSecret != tt.wantEventSecret {
-				t.Errorf("EventSecret = %q, want %q", p.EventSecret, tt.wantEventSecret)
-			}
-			if p.ECSCluster != "my-cluster" || strings.Join(p.ECSServices, ",") != "backend,worker" {
-				t.Errorf("ECS resources = %q/%v", p.ECSCluster, p.ECSServices)
-			}
-			if p.RequestID != "request-123" {
-				t.Errorf("RequestID = %q, want request-123", p.RequestID)
-			}
-			if p.Status != tt.wantStatus {
-				t.Errorf("Status = %q, want %q", p.Status, tt.wantStatus)
-			}
-			if strings.Join(p.Actions, "|") != strings.Join(tt.wantActions, "|") {
-				t.Errorf("Actions = %v, want %v", p.Actions, tt.wantActions)
-			}
-			if p.ErrorMessage != tt.wantErrorMessage {
-				t.Errorf("ErrorMessage = %q, want %q", p.ErrorMessage, tt.wantErrorMessage)
-			}
-			if strings.Contains(p.ErrorMessage, "internal details") || strings.Contains(p.ErrorMessage, "raw ARN") {
-				t.Errorf("ErrorMessage leaked raw handler error: %q", p.ErrorMessage)
-			}
-			if !p.OccurredAt.Equal(occurredAt) || p.TimezoneName != "America/Lima" {
-				t.Errorf("time context = %v/%q", p.OccurredAt, p.TimezoneName)
-			}
+			assertBuildNotifyPayload(t, p, tt.wantEvent, tt.wantEventSecret, tt.wantStatus, tt.wantActions, tt.wantErrorMessage)
 		})
+	}
+}
+
+func assertBuildNotifyPayload(t *testing.T, p notify.Payload, wantEvent, wantEventSecret string, wantStatus notify.Status, wantActions []string, wantErrorMessage string) {
+	t.Helper()
+	if p.EventName != wantEvent {
+		t.Errorf("EventName = %q, want %q", p.EventName, wantEvent)
+	}
+	if p.EventSecret != wantEventSecret {
+		t.Errorf("EventSecret = %q, want %q", p.EventSecret, wantEventSecret)
+	}
+	if p.Status != wantStatus {
+		t.Errorf("Status = %q, want %q", p.Status, wantStatus)
+	}
+	if strings.Join(p.Actions, "|") != strings.Join(wantActions, "|") {
+		t.Errorf("Actions = %v, want %v", p.Actions, wantActions)
+	}
+	if p.ErrorMessage != wantErrorMessage {
+		t.Errorf("ErrorMessage = %q, want %q", p.ErrorMessage, wantErrorMessage)
+	}
+	if strings.Contains(p.ErrorMessage, "internal details") || strings.Contains(p.ErrorMessage, "raw ARN") {
+		t.Errorf("ErrorMessage leaked raw handler error: %q", p.ErrorMessage)
 	}
 }
