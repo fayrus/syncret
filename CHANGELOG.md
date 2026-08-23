@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-23
+
+### Fixed
+
+- **Go upgraded to 1.27.0** — resolves stdlib CVEs flagged by Docker Hub image scanning; base builder image bumped to `golang:1.27-alpine` to match the Chainguard toolchain version.
+
 ## [0.4.0] - 2026-06-30
 
 ### Added
@@ -58,7 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/fayrus/syncret/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/fayrus/syncret/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/fayrus/syncret/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/fayrus/syncret/compare/v0.1.0...v0.2.0
