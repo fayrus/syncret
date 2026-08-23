@@ -89,7 +89,7 @@ make tidy          # go mod tidy
 make docker-build  # build multi-arch image (linux/amd64 + linux/arm64)
 ```
 
-Requires Go 1.26+.
+Requires Go 1.27+.
 
 ---
 
