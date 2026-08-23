@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-08-23
+
+### Fixed
+
+- **`pymdown-extensions` upgraded to 11.0.2** in `docs/requirements.txt` — resolves two Dependabot alerts: a ReDoS in inline processors (high) and a path-traversal in the `b64` extension (medium). Docs-only dependency; no runtime impact.
+
 ## [0.4.1] - 2026-08-23
 
 ### Fixed
@@ -64,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/fayrus/syncret/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/fayrus/syncret/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/fayrus/syncret/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/fayrus/syncret/compare/v0.2.0...v0.3.0
