@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: 🐳 Build and Push Docker Image
 
 on:
   push:
@@ -20,27 +20,27 @@ on:
 
 jobs:
   security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
+    name: 🛡️ Security Scan
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       security-events: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Read version
+      - name: 🏷️ Read version
         id: version
         run: |
           VERSION=$(cat VERSION)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      - name: Build image for security scan
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+      - name: 🔨 Build image for security scan
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         env:
           DOCKER_BUILD_SUMMARY: false
           DOCKER_BUILD_RECORD_UPLOAD: false
@@ -49,11 +49,13 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: fayrus/syncret:${{ steps.version.outputs.version }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
           pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Scan image with Trivy
+      - name: 🛡️ Scan image with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: fayrus/syncret:${{ steps.version.outputs.version }}
@@ -63,26 +65,26 @@ jobs:
           ignore-unfixed: true
           exit-code: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_vulnerable_image && '0' || '1' }}
 
-      - name: Upload Trivy results to GitHub Security
+      - name: 📤 Upload Trivy results to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463 # v4.36.1
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results.sarif
 
   publish:
-    name: Publish
+    name: 📦 Publish
     needs: security-scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read version
+      - name: 🏷️ Read version
         id: version
         run: |
           VERSION=$(cat VERSION)
@@ -92,21 +94,21 @@ jobs:
             echo "minor=$(echo "$VERSION" | grep -oP 'v\d+\.\d+')"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4
+      - name: 🖥️ Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+      - name: 🔑 Log in to Docker Hub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: 🏷️ Extract metadata
         id: meta
-        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: fayrus/syncret
           tags: |
@@ -115,20 +117,22 @@ jobs:
             type=raw,value=${{ steps.version.outputs.minor }}
             type=raw,value=${{ steps.version.outputs.major }}
 
-      - name: Build and push
+      - name: 🚀 Build and push
         id: publish
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
           pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Create git tag
+      - name: 🔖 Create git tag
         id: git_tag
         run: |
           VERSION=$(cat VERSION)
@@ -142,7 +146,7 @@ jobs:
             echo "created=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check if README changed
+      - name: 📝 Check if README changed
         id: readme
         run: |
           if git diff --name-only HEAD~1 HEAD | grep -q "^README.md$"; then
@@ -151,7 +155,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update Docker Hub description
+      - name: 📝 Update Docker Hub description
         if: steps.readme.outputs.changed == 'true'
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5
         with:
@@ -159,7 +163,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: fayrus/syncret
 
-      - name: Publish summary
+      - name: 📋 Publish summary
         if: always()
         run: |
           {

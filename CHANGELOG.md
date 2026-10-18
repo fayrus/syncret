@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-18
+
+### Fixed
+
+- **Docs dependencies upgraded** in `docs/requirements.txt` — `urllib3` 2.8.0 resolves three Dependabot alerts (unbounded chunk-size buffering and ignored HTTPS proxy TLS configuration, both high; infinite loop in chunked deflate streaming, medium) and `mkdocs-material` 9.7.7 resolves a DOM XSS in search suggestions (medium). Docs-only dependencies; no runtime impact.
+- **Published images now report their real version** — the publish workflow passes `VERSION` as a Docker build arg; previously images were built with the default `dev`, so the startup log showed `version=dev`.
+- **`docker/setup-qemu-action` upgraded to v4.4.0** in the publish workflow — removes the spurious `Failed to save: Unable to reserve cache` warning caused by a minification bug in v4.1.0 ([docker/setup-qemu-action#306](https://github.com/docker/setup-qemu-action/issues/306)).
+
+### Changed
+
+- **GitHub Actions upgraded** (SHA-pinned) — `actions/checkout` v7.0.1, `actions/setup-go` v7, `actions/setup-python` v7, `docker/build-push-action` v7.4.0, `docker/login-action` v4.6.0, `docker/metadata-action` v6.2.0, `docker/setup-buildx-action` v4.4.1, `github/codeql-action/upload-sarif` v4.39.0, `golangci/golangci-lint-action` v9.3.0, `SonarSource/sonarqube-scan-action` v8.3.0, `SonarSource/sonarqube-quality-gate-action` v1.2.1.
+- **CI runners pinned to `ubuntu-24.04`** instead of `ubuntu-latest`, so runner image upgrades (e.g., Ubuntu 26.04) are adopted deliberately.
+- **golangci-lint pinned to v2.15.0** instead of `latest`, so new linter releases cannot break CI unexpectedly.
+- **Workflow, job, and step names refreshed with icons**; the `CI` workflow is now `🧪 PR Checks`. Jobs used as required status checks (`Lint (Actions)`, `Tests (Go)`, `Lint (Go)`) keep their names.
+
 ## [0.4.3] - 2026-10-18
 
 ### Fixed
