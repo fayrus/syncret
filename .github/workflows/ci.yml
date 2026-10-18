@@ -10,6 +10,9 @@ on:
       - "*.md"
       - "sonar-project.properties"
 
+permissions:
+  contents: read
+
 jobs:
   workflow-lint:
     name: Lint (Actions)
