@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Least-privilege `GITHUB_TOKEN` permissions** in the `ci.yml` (`contents: read`) and `sonarcloud.yml` (`contents: read`, `pull-requests: read`) workflows — resolves CodeQL `actions/missing-workflow-permissions` alerts.
+
 ## [0.4.4] - 2026-10-18
 
 ### Fixed
