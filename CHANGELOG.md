@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-18
+
+### Fixed
+
+- **Go upgraded to 1.27.2** — resolves 8 reachable stdlib vulnerabilities reported by `govulncheck` in `net/http`, `net/http/internal/http2`, `net/textproto`, and `crypto/tls` (GO-2026-6603, GO-2026-6605, GO-2026-6607, GO-2026-6608, GO-2026-6610, GO-2026-6611, GO-2026-6613, GO-2026-6617). Builder image pinned to `golang:1.27.2-alpine` so cached or stale `1.27` tags cannot produce a binary built with an older toolchain.
+
+### Changed
+
+- **Go module dependencies upgraded** — `aws-lambda-go` 1.55.1, `aws-sdk-go-v2` 1.47.3, `config` 1.33.9, `service/ecs` 1.100.3, `service/secretsmanager` 1.50.4, plus related indirect AWS SDK and `smithy-go` modules.
+
 ## [0.4.2] - 2026-08-23
 
 ### Fixed
