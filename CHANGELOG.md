@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-10-29
+
 ### Fixed
 
+- **Go upgraded to 1.27.3** — resolves CVE-2026-111943 (GO-2026-6809) in `crypto/x509`, reachable through outbound TLS to AWS and Google Chat: `Certificate.Verify` now rejects known compromised intermediate certificates. Builder image bumped to `golang:1.27.3-alpine`.
 - **Least-privilege `GITHUB_TOKEN` permissions** in the `ci.yml` (`contents: read`) and `sonarcloud.yml` (`contents: read`, `pull-requests: read`) workflows — resolves CodeQL `actions/missing-workflow-permissions` alerts.
+
+### Changed
+
+- **Go module dependencies upgraded** — `aws-sdk-go-v2` 1.47.5, `config` 1.33.12, `service/ecs` 1.103.0, `service/secretsmanager` 1.50.7, plus related indirect AWS SDK and `smithy-go` modules.
+- **Docs dependencies upgraded** in `docs/requirements.txt` — `mkdocs-material` 9.8.0, `markdown` 3.11.2, `python-dateutil` 3.0.0, `platformdirs` 4.14.0, `certifi` 2026.10.23, plus new transitive `tzdata`.
+- **GitHub Actions upgraded** (SHA-pinned) — `actions/setup-python` v7.1.0, `docker/login-action` v4.7.0, `github/codeql-action/upload-sarif` v4.39.1, `SonarSource/sonarqube-scan-action` v8.4.0.
+- **Trivy pinned to v0.76.1** in the publish workflow — `trivy-action` v0.36.0 installs Trivy v0.70.0 by default; v0.76.1 is built with Go 1.27.3 and ships the eMudhra CA distrust mitigation.
 
 ## [0.4.4] - 2026-10-18
 
