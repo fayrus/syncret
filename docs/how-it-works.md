@@ -66,7 +66,9 @@ This makes the core logic testable without provider credentials, and keeps the d
 
 ## Idempotency
 
-**Target secret writes** use a token derived from the target secret's current version. If the same event is delivered twice (at-least-once delivery is common in event systems), both invocations produce the same token and the same value — the second write is treated as a no-op.
+**Target secret writes** are skipped when the target already holds every selected value. A retry after a partial failure (for example, the target was updated but the service redeployment failed) therefore does not create another secret version and proceeds to the remaining steps.
+
+When a write is needed, it uses a token derived from the target secret's current version. If the same event is delivered twice and both invocations run concurrently (at-least-once delivery is common in event systems), they read the same version, produce the same token and the same value — the second write is treated as a no-op.
 
 **Service redeployment** is idempotent at the provider level. Triggering a force redeployment on a service that already has a deployment in progress is safe.
 

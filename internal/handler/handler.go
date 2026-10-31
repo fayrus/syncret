@@ -12,7 +12,7 @@ import (
 
 type SecretsProvider interface {
 	GetSecretString(ctx context.Context, arn string) (string, error)
-	MergeAndPutSecret(ctx context.Context, targetARN string, sourceData map[string]any, keys []string) error
+	MergeAndPutSecret(ctx context.Context, targetARN string, sourceData map[string]any, keys []string) (bool, error)
 }
 
 type ComputeProvider interface {
@@ -138,10 +138,15 @@ func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvi
 		"keys", cfg.TargetSecretKeys,
 	)
 
-	if err := sm.MergeAndPutSecret(ctx, cfg.TargetSecretARN, sourceData, cfg.TargetSecretKeys); err != nil {
+	changed, err := sm.MergeAndPutSecret(ctx, cfg.TargetSecretARN, sourceData, cfg.TargetSecretKeys)
+	if err != nil {
 		return fmt.Errorf("handler: update target secret: %w", err)
 	}
 
+	if !changed {
+		log.Info("target secret already up to date", "target_arn", cfg.TargetSecretARN)
+		return nil
+	}
 	log.Info("target secret updated", "target_arn", cfg.TargetSecretARN)
 	return nil
 }

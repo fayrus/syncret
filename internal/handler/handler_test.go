@@ -12,10 +12,11 @@ import (
 // ── mock clients ─────────────────────────────────────────────────────────────
 
 type mockSecrets struct {
-	values  map[string]string
-	getErr  error
-	putErr  error
-	putArns []string
+	values    map[string]string
+	getErr    error
+	putErr    error
+	putArns   []string
+	unchanged bool
 }
 
 func (m *mockSecrets) GetSecretString(_ context.Context, arn string) (string, error) {
@@ -25,9 +26,12 @@ func (m *mockSecrets) GetSecretString(_ context.Context, arn string) (string, er
 	return m.values[arn], nil
 }
 
-func (m *mockSecrets) MergeAndPutSecret(_ context.Context, targetARN string, _ map[string]any, _ []string) error {
+func (m *mockSecrets) MergeAndPutSecret(_ context.Context, targetARN string, _ map[string]any, _ []string) (bool, error) {
 	m.putArns = append(m.putArns, targetARN)
-	return m.putErr
+	if m.putErr != nil {
+		return false, m.putErr
+	}
+	return !m.unchanged, nil
 }
 
 type mockECS struct {
@@ -271,6 +275,7 @@ func TestExecute_resultTracksPipelineStages(t *testing.T) {
 		payload     []byte
 		getErr      error
 		putErr      error
+		unchanged   bool
 		ecsErr      error
 		wantErr     bool
 		wantTarget  stageStatus
@@ -280,6 +285,13 @@ func TestExecute_resultTracksPipelineStages(t *testing.T) {
 		{
 			name:       "all configured stages succeed",
 			payload:    serviceEvent("RotationSucceeded", sourceARN),
+			wantTarget: stageSucceeded,
+			wantECS:    stageSucceeded,
+		},
+		{
+			name:       "unchanged target still succeeds and redeploys ECS",
+			payload:    serviceEvent("RotationSucceeded", sourceARN),
+			unchanged:  true,
 			wantTarget: stageSucceeded,
 			wantECS:    stageSucceeded,
 		},
@@ -338,9 +350,10 @@ func TestExecute_resultTracksPipelineStages(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := withECS(baseConfig(), "backend", "worker")
 			sm := &mockSecrets{
-				values: map[string]string{sourceARN: `{"password":"new"}`},
-				getErr: tt.getErr,
-				putErr: tt.putErr,
+				values:    map[string]string{sourceARN: `{"password":"new"}`},
+				getErr:    tt.getErr,
+				putErr:    tt.putErr,
+				unchanged: tt.unchanged,
 			}
 			ecsClient := &mockECS{updateErr: tt.ecsErr}
 

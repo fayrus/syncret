@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -43,19 +44,22 @@ func (s *SecretsManager) GetSecretString(ctx context.Context, arn string) (strin
 	return value, err
 }
 
-// ClientRequestToken is derived from the target's current VersionId so that concurrent invocations
-// processing the same event produce the same token — making the second write a no-op.
-func (s *SecretsManager) MergeAndPutSecret(ctx context.Context, targetARN string, sourceData map[string]any, keys []string) error {
+// MergeAndPutSecret skips the write when the target already holds every selected value, so sequential
+// retries do not create new versions. ClientRequestToken is derived from the target's current VersionId
+// so that concurrent invocations processing the same event produce the same token — making the second
+// write a no-op. It reports whether a write was performed.
+func (s *SecretsManager) MergeAndPutSecret(ctx context.Context, targetARN string, sourceData map[string]any, keys []string) (bool, error) {
 	raw, versionID, err := s.getSecretValue(ctx, targetARN)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	var target map[string]any
 	if err := json.Unmarshal([]byte(raw), &target); err != nil {
-		return fmt.Errorf("secrets: parse target %s: %w", targetARN, err)
+		return false, fmt.Errorf("secrets: parse target %s: %w", targetARN, err)
 	}
 
+	changed := false
 	for _, k := range keys {
 		srcKey, dstKey, _ := strings.Cut(k, ":")
 		if dstKey == "" {
@@ -63,14 +67,20 @@ func (s *SecretsManager) MergeAndPutSecret(ctx context.Context, targetARN string
 		}
 		v, ok := sourceData[srcKey]
 		if !ok {
-			return fmt.Errorf("secrets: source key %q not found in secret", srcKey)
+			return false, fmt.Errorf("secrets: source key %q not found in secret", srcKey)
+		}
+		if current, exists := target[dstKey]; !exists || !reflect.DeepEqual(current, v) {
+			changed = true
 		}
 		target[dstKey] = v
+	}
+	if !changed {
+		return false, nil
 	}
 
 	updated, err := json.Marshal(target)
 	if err != nil {
-		return fmt.Errorf("secrets: marshal updated secret: %w", err)
+		return false, fmt.Errorf("secrets: marshal updated secret: %w", err)
 	}
 
 	_, err = s.client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{
@@ -79,10 +89,10 @@ func (s *SecretsManager) MergeAndPutSecret(ctx context.Context, targetARN string
 		ClientRequestToken: aws.String(idempotencyToken(targetARN, versionID)),
 	})
 	if err != nil {
-		return fmt.Errorf("secrets: put %s: %w", targetARN, err)
+		return false, fmt.Errorf("secrets: put %s: %w", targetARN, err)
 	}
 
-	return nil
+	return true, nil
 }
 
 // idempotencyToken returns a UUID-formatted string derived from targetARN and versionID.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -16,6 +17,9 @@ type mockSecretsClient struct {
 	putErr error
 
 	putCalledWith *secretsmanager.PutSecretValueInput
+	putCount      int
+	// applyPut makes a successful put become the value returned by later gets, as Secrets Manager would.
+	applyPut bool
 }
 
 func (m *mockSecretsClient) GetSecretValue(_ context.Context, params *secretsmanager.GetSecretValueInput, _ ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
@@ -24,6 +28,13 @@ func (m *mockSecretsClient) GetSecretValue(_ context.Context, params *secretsman
 
 func (m *mockSecretsClient) PutSecretValue(_ context.Context, params *secretsmanager.PutSecretValueInput, _ ...func(*secretsmanager.Options)) (*secretsmanager.PutSecretValueOutput, error) {
 	m.putCalledWith = params
+	m.putCount++
+	if m.applyPut && m.putErr == nil {
+		m.getOut = &secretsmanager.GetSecretValueOutput{
+			SecretString: params.SecretString,
+			VersionId:    aws.String(fmt.Sprintf("v%d", m.putCount+1)),
+		}
+	}
 	return &secretsmanager.PutSecretValueOutput{}, m.putErr
 }
 
@@ -89,15 +100,16 @@ func TestMergeAndPutSecret(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		target    map[string]any
-		source    map[string]any
-		keys      []string
-		getErr    error
-		putErr    error
-		wantErr   bool
-		wantNoPut bool
-		checkPut  func(t *testing.T, input *secretsmanager.PutSecretValueInput)
+		name          string
+		target        map[string]any
+		source        map[string]any
+		keys          []string
+		getErr        error
+		putErr        error
+		wantErr       bool
+		wantNoPut     bool
+		wantUnchanged bool
+		checkPut      func(t *testing.T, input *secretsmanager.PutSecretValueInput)
 	}{
 		{
 			name:    "updates single key",
@@ -156,6 +168,25 @@ func TestMergeAndPutSecret(t *testing.T) {
 			},
 		},
 		{
+			name:          "unchanged values skip PutSecretValue",
+			target:        map[string]any{"host": "db.example.com", "password": "newpass"},
+			source:        source,
+			keys:          []string{"password"},
+			wantNoPut:     true,
+			wantUnchanged: true,
+		},
+		{
+			name:   "new destination key is written even when other values match",
+			target: map[string]any{"password": "newpass"},
+			source: source,
+			keys:   []string{"password", "password:MB_DB_PASS"},
+			checkPut: func(t *testing.T, input *secretsmanager.PutSecretValueInput) {
+				if input == nil {
+					t.Fatal("PutSecretValue was not called")
+				}
+			},
+		},
+		{
 			name:      "missing source key returns error without calling PutSecretValue",
 			target:    target,
 			source:    source,
@@ -190,9 +221,12 @@ func TestMergeAndPutSecret(t *testing.T) {
 			}
 			sm := NewSecretsManager(mock)
 
-			err := sm.MergeAndPutSecret(context.Background(), "arn:target", tt.source, tt.keys)
+			changed, err := sm.MergeAndPutSecret(context.Background(), "arn:target", tt.source, tt.keys)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && changed == tt.wantUnchanged {
+				t.Errorf("changed = %v, want %v", changed, !tt.wantUnchanged)
 			}
 
 			if tt.wantNoPut && mock.putCalledWith != nil {
@@ -213,7 +247,7 @@ func TestMergeAndPutSecret_InvalidTargetJSON(t *testing.T) {
 		},
 	}
 	sm := NewSecretsManager(mock)
-	err := sm.MergeAndPutSecret(context.Background(), "arn:target", map[string]any{"password": "new"}, []string{"password"})
+	_, err := sm.MergeAndPutSecret(context.Background(), "arn:target", map[string]any{"password": "new"}, []string{"password"})
 	if err == nil {
 		t.Fatal("expected error for non-JSON target secret, got nil")
 	}
@@ -235,7 +269,7 @@ func TestMergeAndPutSecret_ClientRequestToken(t *testing.T) {
 	mock := &mockSecretsClient{getOut: getOut}
 	sm := NewSecretsManager(mock)
 
-	if err := sm.MergeAndPutSecret(context.Background(), "arn:target", map[string]any{"password": "new"}, []string{"password"}); err != nil {
+	if _, err := sm.MergeAndPutSecret(context.Background(), "arn:target", map[string]any{"password": "new"}, []string{"password"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -247,6 +281,32 @@ func TestMergeAndPutSecret_ClientRequestToken(t *testing.T) {
 	want := idempotencyToken("arn:target", versionID)
 	if got != want {
 		t.Errorf("ClientRequestToken = %q, want %q", got, want)
+	}
+}
+
+func TestMergeAndPutSecret_SequentialRetry(t *testing.T) {
+	mock := &mockSecretsClient{
+		getOut: &secretsmanager.GetSecretValueOutput{
+			SecretString: aws.String(`{"host":"db.example.com","password":"old"}`),
+			VersionId:    aws.String("v1"),
+		},
+		applyPut: true,
+	}
+	sm := NewSecretsManager(mock)
+	source := map[string]any{"password": "new"}
+
+	for attempt := 1; attempt <= 3; attempt++ {
+		changed, err := sm.MergeAndPutSecret(context.Background(), "arn:target", source, []string{"password"})
+		if err != nil {
+			t.Fatalf("attempt %d: unexpected error: %v", attempt, err)
+		}
+		if want := attempt == 1; changed != want {
+			t.Errorf("attempt %d: changed = %v, want %v", attempt, changed, want)
+		}
+	}
+
+	if mock.putCount != 1 {
+		t.Errorf("PutSecretValue called %d times, want 1", mock.putCount)
 	}
 }
 

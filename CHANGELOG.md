@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-10-31
+
 ### Fixed
 
+- **Target secret writes are skipped when values are unchanged** — `MergeAndPutSecret` compares the selected values with the target and skips `PutSecretValue` when nothing changes. Sequential retries after a partial failure (for example, a failed ECS redeployment) no longer create a new target secret version on every attempt; the handler logs `target secret already up to date` and the notification still reports the stage as succeeded ([#13](https://github.com/fayrus/syncret/issues/13)).
 - **Reject a target secret that is the source secret** — startup validation now fails when `SYNCRET_AWS_TARGET_SECRET_ARN` refers to the same secret as `SYNCRET_AWS_SECRET_ARN`, by full ARN, partial ARN, or name. Previously each target write emitted a new event for the source and caused a self-triggering update loop ([#11](https://github.com/fayrus/syncret/issues/11)).
 
 ### Changed
