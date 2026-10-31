@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Reject a target secret that is the source secret** — startup validation now fails when `SYNCRET_AWS_TARGET_SECRET_ARN` refers to the same secret as `SYNCRET_AWS_SECRET_ARN`, by full ARN, partial ARN, or name. Previously each target write emitted a new event for the source and caused a self-triggering update loop ([#11](https://github.com/fayrus/syncret/issues/11)).
+
+### Changed
+
+- **Go module dependencies upgraded** — `aws-sdk-go-v2/config` 1.33.13, `service/ecs` 1.103.1, `service/secretsmanager` 1.50.8, plus related indirect AWS SDK modules.
+
 ## [0.4.5] - 2026-10-29
 
 ### Fixed
