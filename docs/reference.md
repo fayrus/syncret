@@ -40,7 +40,7 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 |---|---|---|---|
 | `SYNCRET_AWS_SECRET_ARN` | Yes | — | ARN of the source secret to monitor. Must match the secret ARN in the incoming event — mismatches are rejected. |
 | `SYNCRET_AWS_REGION` | Yes | — | AWS region where all resources live. |
-| `SYNCRET_AWS_TARGET_SECRET_ARN` | No* | — | ARN of the secret to update with selected fields from the source secret. |
+| `SYNCRET_AWS_TARGET_SECRET_ARN` | No* | — | ARN of the secret to update with selected fields from the source secret. Must refer to a different secret than `SYNCRET_AWS_SECRET_ARN` (also checked against the source's partial ARN and name); otherwise Syncret refuses to start, since writing to the source would re-trigger itself. |
 | `SYNCRET_AWS_ECS_FORCE_DEPLOY` | No* | `false` | Enable ECS force-new-deployment. |
 | `SYNCRET_AWS_ECS_CLUSTER` | If ECS enabled | — | Name of the ECS cluster. |
 | `SYNCRET_AWS_ECS_SERVICES` | If ECS enabled | — | Comma-separated list of ECS service names to redeploy. Spaces around names are trimmed. |
