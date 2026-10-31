@@ -157,6 +157,44 @@ func TestLoad_targetSecret(t *testing.T) {
 	})
 }
 
+func TestLoad_sameSourceAndTarget(t *testing.T) {
+	const source = "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/db-AbC123"
+	tests := []struct {
+		name    string
+		target  string
+		wantErr bool
+	}{
+		{"same full ARN", source, true},
+		{"same partial ARN", "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/db", true},
+		{"same secret name", "prod/db", true},
+		{"different secret", "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/target-XyZ789", false},
+		{"different secret name with source as prefix", "prod/db-replica", false},
+		{"same name in another account", "arn:aws:secretsmanager:us-east-1:999999999999:secret:prod/db", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := baseEnv()
+			env[envAWSSecretARN] = source
+			env[envAWSTargetSecretARN] = tt.target
+			setEnv(t, env)
+
+			_, err := Load()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Load() expected error, got nil")
+				}
+				if !strings.Contains(err.Error(), envAWSTargetSecretARN) {
+					t.Errorf("error %q does not mention %s", err, envAWSTargetSecretARN)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestLoad_parseList(t *testing.T) {
 	tests := []struct {
 		name     string

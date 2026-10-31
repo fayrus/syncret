@@ -98,6 +98,9 @@ func (c *Config) validate() error {
 	if c.TargetSecretARN != "" && len(c.TargetSecretKeys) == 0 {
 		return fmt.Errorf("config: %s is required when %s is set", envTargetSecretKeys, envAWSTargetSecretARN)
 	}
+	if c.TargetSecretARN != "" && sameSecret(c.SecretARN, c.TargetSecretARN) {
+		return fmt.Errorf("config: %s must refer to a different secret than %s", envAWSTargetSecretARN, envAWSSecretARN)
+	}
 
 	if c.TargetSecretARN == "" && !c.ECSForceDeploy {
 		return fmt.Errorf("config: at least one of %s or %s=true must be configured", envAWSTargetSecretARN, envAWSECSForceDeploy)
@@ -133,6 +136,22 @@ func (c *Config) validateECSConfig() error {
 		return fmt.Errorf("config: %s is required when %s is true", envAWSECSServices, envAWSECSForceDeploy)
 	}
 	return nil
+}
+
+// sameSecret reports whether target identifies sourceARN by full ARN, partial ARN, or name.
+// sourceARN is the full ARN from EventBridge, so its 6-character random suffix is always present.
+func sameSecret(sourceARN, target string) bool {
+	if target == sourceARN {
+		return true
+	}
+	const marker = ":secret:"
+	i := strings.Index(sourceARN, marker)
+	j := strings.LastIndex(sourceARN, "-")
+	if i < 0 || j <= i+len(marker) || len(sourceARN)-j-1 != 6 {
+		return false
+	}
+	partial := sourceARN[:j]
+	return target == partial || target == partial[i+len(marker):]
 }
 
 func envOrDefault(key, def string) string {
