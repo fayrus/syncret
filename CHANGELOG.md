@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Contributing guide, Code of Conduct, and security policy** — the repository now explains how to contribute and how to report vulnerabilities privately.
+
+### Fixed
+
+- **Bug report template** — the examples now use a current variable name and image tags that are actually published.
+
 ## [0.4.7] - 2026-11-01
 
 ### Changed
