@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-11-01
+
+### Changed
+
+- **CI now enforces Go formatting** — the lint check fails on code that is not formatted with `gofmt`. No runtime behavior or configuration changes ([#15](https://github.com/fayrus/syncret/issues/15)).
+
 ## [0.4.6] - 2026-10-31
 
 ### Fixed
@@ -120,7 +126,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.7...HEAD
+[0.4.7]: https://github.com/fayrus/syncret/compare/v0.4.6...v0.4.7
+[0.4.6]: https://github.com/fayrus/syncret/compare/v0.4.5...v0.4.6
+[0.4.5]: https://github.com/fayrus/syncret/compare/v0.4.4...v0.4.5
+[0.4.4]: https://github.com/fayrus/syncret/compare/v0.4.3...v0.4.4
+[0.4.3]: https://github.com/fayrus/syncret/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/fayrus/syncret/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/fayrus/syncret/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/fayrus/syncret/compare/v0.3.0...v0.4.0
