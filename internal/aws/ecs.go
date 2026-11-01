@@ -89,4 +89,3 @@ func (e *ECS) ForceNewDeployment(ctx context.Context, cluster string, services [
 
 	return errors.Join(errs...)
 }
-

@@ -196,4 +196,3 @@ func TestForceNewDeployment_Batching(t *testing.T) {
 		t.Errorf("UpdateService called %d times, want %d", len(mock.updateCalls), n)
 	}
 }
-
