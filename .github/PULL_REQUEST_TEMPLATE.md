@@ -19,7 +19,8 @@
 - [ ] `make test` passes
 - [ ] `make lint` passes
 - [ ] New behavior is covered by tests
-- [ ] `CHANGELOG.md` updated under `## [Unreleased]`
+- [ ] `CHANGELOG.md` updated
+- [ ] `VERSION` bumped if merging publishes a new image (see `CONTRIBUTING.md`)
 - [ ] Docs updated if behavior or configuration changed
 
 ## Related issues

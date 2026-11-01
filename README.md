@@ -47,7 +47,7 @@ Azure and GCP support is planned. Contributions welcome.
 
 ## Quickstart — AWS
 
-Set environment variables on your Lambda function and deploy the container image.
+The image is published on Docker Hub as `fayrus/syncret`. Lambda can only run images from ECR, so copy it there first, as the [AWS deployment guide](docs/deployment/aws.md) explains. Then set these environment variables on your Lambda function.
 
 ```bash
 SYNCRET_PROVIDER=aws
@@ -89,7 +89,13 @@ make tidy          # go mod tidy
 make docker-build  # build multi-arch image (linux/amd64 + linux/arm64)
 ```
 
-Requires Go 1.27+.
+Requires Go 1.27.3+.
+
+---
+
+## Contributing
+
+See the [contributing guide](.github/CONTRIBUTING.md) and the [Code of Conduct](.github/CODE_OF_CONDUCT.md). To report a vulnerability, follow the [security policy](.github/SECURITY.md).
 
 ---
 

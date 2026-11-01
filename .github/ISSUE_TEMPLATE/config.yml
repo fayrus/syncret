@@ -1,0 +1,4 @@
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/fayrus/syncret/security/policy
+    about: Please report vulnerabilities privately instead of opening a public issue.
