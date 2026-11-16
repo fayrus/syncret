@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Contributing guide, Code of Conduct, and security policy** — the repository now explains how to contribute and how to report vulnerabilities privately.
+- **Dependabot version updates** — weekly pull requests now keep Go modules, the Docker base images, GitHub Actions, and the documentation tooling up to date.
 
 ### Fixed
 
