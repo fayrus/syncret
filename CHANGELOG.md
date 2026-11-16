@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-11-15
+
+### Changed
+
+- **Go module dependencies upgraded** — `aws-sdk-go-v2` 1.48.0, `aws-sdk-go-v2/config` 1.33.18, `service/ecs` 1.105.1, `service/secretsmanager` 1.51.0, plus related indirect AWS SDK modules.
+
 ## [0.4.8] - 2026-11-15
 
 ### Added
@@ -138,7 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.9...HEAD
+[0.4.9]: https://github.com/fayrus/syncret/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/fayrus/syncret/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/fayrus/syncret/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/fayrus/syncret/compare/v0.4.5...v0.4.6
