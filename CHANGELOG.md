@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-11-15
+
 ### Added
 
 - **Contributing guide, Code of Conduct, and security policy** — the repository now explains how to contribute and how to report vulnerabilities privately.
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Go upgraded to 1.27.4** — includes security fixes to the `net/http` package, used for outbound calls to AWS and Google Chat, plus fixes to `crypto/tls` and `net`. Builder image bumped to `golang:1.27.4-alpine`.
 - **Bug report template** — the examples now use a current variable name and image tags that are actually published.
 
 ## [0.4.7] - 2026-11-01
@@ -135,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.7...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.8...HEAD
+[0.4.8]: https://github.com/fayrus/syncret/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/fayrus/syncret/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/fayrus/syncret/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/fayrus/syncret/compare/v0.4.4...v0.4.5
