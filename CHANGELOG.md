@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pull requests that only change documentation are no longer blocked** — the test and lint checks now report as skipped instead of never reporting, so they can be required on `main` without holding up docs-only PRs.
+
 ## [0.4.9] - 2026-11-15
 
 ### Changed
