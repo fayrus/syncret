@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-11-22
+
 ### Fixed
 
 - **A `null` secret value no longer crashes the handler** — when the target secret holds `null`, Syncret now fails with `secrets: parse target <arn>: not a JSON object` instead of panicking. A `null` source secret reports `handler: parse source secret: not a JSON object` instead of a misleading "source key not found" error ([#30](https://github.com/fayrus/syncret/issues/30)).
@@ -163,7 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.10...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.11...HEAD
+[0.4.11]: https://github.com/fayrus/syncret/compare/v0.4.10...v0.4.11
 [0.4.10]: https://github.com/fayrus/syncret/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/fayrus/syncret/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/fayrus/syncret/compare/v0.4.7...v0.4.8
