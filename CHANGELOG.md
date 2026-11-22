@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Continuous vulnerability checks** — every pull request that changes code now runs `govulncheck`, and a daily run on `main` reports vulnerabilities disclosed after a release. Only vulnerabilities in code Syncret actually calls are reported, including the Go standard library for the version in `go.mod` ([#32](https://github.com/fayrus/syncret/issues/32)).
+
 ## [0.4.11] - 2026-11-22
 
 ### Fixed
