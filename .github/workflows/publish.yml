@@ -56,72 +56,22 @@ jobs:
               ;;
           esac
 
-  security-scan:
-    name: 🛡️ Security Scan
+  build:
+    name: 🔨 Build
     needs: version-check
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      security-events: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      major: ${{ steps.version.outputs.major }}
+      minor: ${{ steps.version.outputs.minor }}
+      digest: ${{ steps.build.outputs.digest }}
+      base_digest: ${{ steps.base.outputs.digest }}
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: 🏷️ Read version
-        id: version
-        run: |
-          VERSION=$(cat VERSION)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: 🐳 Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-
-      - name: 🔨 Build image for security scan
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        env:
-          DOCKER_BUILD_SUMMARY: false
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: .
-          platforms: linux/amd64
-          load: true
-          tags: fayrus/syncret:${{ steps.version.outputs.version }}
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
-          pull: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🛡️ Scan image with Trivy
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: fayrus/syncret:${{ steps.version.outputs.version }}
-          version: v0.76.1
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_vulnerable_image && '0' || '1' }}
-
-      - name: 📤 Upload Trivy results to GitHub Security
-        if: always()
-        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
-        with:
-          sarif_file: trivy-results.sarif
-
-  publish:
-    name: 📦 Publish
-    needs: security-scan
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🏷️ Read version
         id: version
@@ -145,31 +95,133 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # The Chainguard free tier only serves `latest`, so the Dockerfile cannot
+      # pin a digest. Resolve it once here and reuse it for every platform.
+      - name: 🔎 Resolve runtime base digest
+        id: base
+        run: |
+          digest=$(docker buildx imagetools inspect cgr.dev/chainguard/static:latest --format '{{json .Manifest.Digest}}' | tr -d '"')
+          if [[ "$digest" != sha256:* ]]; then
+            echo "::error::Could not resolve the digest of cgr.dev/chainguard/static:latest (got '${digest}')."
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # Only the labels are used here. The single tag sets
+      # org.opencontainers.image.version to the release (vX.Y.Z) instead of
+      # `latest`; the publish job applies all tags once the scans pass.
       - name: 🏷️ Extract metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: fayrus/syncret
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=${{ steps.version.outputs.minor }}
-            type=raw,value=${{ steps.version.outputs.major }}
+          tags: type=raw,value=${{ steps.version.outputs.version }}
 
-      - name: 🚀 Build and push
-        id: publish
+      # Pushed by digest only: no tag points to this image until both scans pass.
+      - name: 🔨 Build and push by digest
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          outputs: type=image,name=fayrus/syncret,push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
+          build-contexts: |
+            cgr.dev/chainguard/static:latest=docker-image://cgr.dev/chainguard/static@${{ steps.base.outputs.digest }}
           pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  security-scan:
+    name: 🛡️ Security Scan (${{ matrix.arch }})
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+          - platform: linux/arm64
+            arch: arm64
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 🛡️ Scan image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_PLATFORM: ${{ matrix.platform }}
+        with:
+          image-ref: fayrus/syncret@${{ needs.build.outputs.digest }}
+          version: v0.76.2
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_vulnerable_image && '0' || '1' }}
+
+      - name: 📤 Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.arch }}
+
+  publish:
+    name: 📦 Publish
+    needs: [build, security-scan]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: 🔑 Log in to Docker Hub
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Tags the scanned digest; nothing is rebuilt.
+      - name: 🚀 Tag scanned image
+        env:
+          DIGEST: ${{ needs.build.outputs.digest }}
+          VERSION: ${{ needs.build.outputs.version }}
+          MINOR: ${{ needs.build.outputs.minor }}
+          MAJOR: ${{ needs.build.outputs.major }}
+        run: |
+          docker buildx imagetools create \
+            -t fayrus/syncret:latest \
+            -t "fayrus/syncret:${VERSION}" \
+            -t "fayrus/syncret:${MINOR}" \
+            -t "fayrus/syncret:${MAJOR}" \
+            "fayrus/syncret@${DIGEST}"
+
+      - name: ✅ Verify published digest
+        env:
+          DIGEST: ${{ needs.build.outputs.digest }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          published=$(docker buildx imagetools inspect "fayrus/syncret:${VERSION}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          if [[ "$published" != "$DIGEST" ]]; then
+            echo "::error::fayrus/syncret:${VERSION} points to ${published}, not the scanned digest ${DIGEST}."
+            exit 1
+          fi
+          echo "fayrus/syncret:${VERSION} points to the scanned digest ${DIGEST}."
 
       - name: 🔖 Create git tag
         id: git_tag
@@ -211,12 +263,13 @@ jobs:
             echo "| Field | Value |"
             echo "| --- | --- |"
             echo "| Job status | ${{ job.status }} |"
-            echo "| Version | ${{ steps.version.outputs.version }} |"
-            echo "| Major tag | ${{ steps.version.outputs.major }} |"
-            echo "| Minor tag | ${{ steps.version.outputs.minor }} |"
+            echo "| Version | ${{ needs.build.outputs.version }} |"
+            echo "| Major tag | ${{ needs.build.outputs.major }} |"
+            echo "| Minor tag | ${{ needs.build.outputs.minor }} |"
             echo "| Image | fayrus/syncret |"
-            echo "| Published tags | latest, ${{ steps.version.outputs.version }}, ${{ steps.version.outputs.minor }}, ${{ steps.version.outputs.major }} |"
-            echo "| Image digest | ${{ steps.publish.outputs.digest }} |"
+            echo "| Published tags | latest, ${{ needs.build.outputs.version }}, ${{ needs.build.outputs.minor }}, ${{ needs.build.outputs.major }} |"
+            echo "| Image digest (scanned and published) | ${{ needs.build.outputs.digest }} |"
+            echo "| Runtime base digest | cgr.dev/chainguard/static@${{ needs.build.outputs.base_digest }} |"
             echo "| Git tag created | ${{ steps.git_tag.outputs.created }} |"
             echo "| README changed | ${{ steps.readme.outputs.changed }} |"
             echo "| Docker Hub description update | ${{ steps.readme.outputs.changed == 'true' && 'requested' || 'skipped' }} |"

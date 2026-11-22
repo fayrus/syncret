@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The published image is the one that passed the security scan, on both architectures** — publishing now builds the image once, scans it with Trivy for `linux/amd64` and `linux/arm64`, and tags that same image only when both scans pass. Previously only an `amd64` build was scanned and the published image was rebuilt separately. The publish summary also records the Chainguard base image digest used ([#28](https://github.com/fayrus/syncret/issues/28)).
+- **Images are labeled with their release version** — the `org.opencontainers.image.version` label now carries the release (for example `v0.4.11`) instead of `latest`.
+
+### Changed
+
+- **Trivy upgraded to v0.76.2** in the publish workflow.
+
 ## [0.4.10] - 2026-11-22
 
 ### Fixed
