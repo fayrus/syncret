@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Released image tags can no longer be overwritten** — publishing now fails before the build when the `VERSION` image tag already exists on Docker Hub, or when Docker Hub cannot confirm it does not, so a pinned `vX.Y.Z` image always matches its Git tag. `latest` and the minor and major tags still move forward ([#24](https://github.com/fayrus/syncret/issues/24)).
 - **Pull requests that only change documentation are no longer blocked** — the test and lint checks now report as skipped instead of never reporting, so they can be required on `main` without holding up docs-only PRs.
 
 ## [0.4.9] - 2026-11-15
