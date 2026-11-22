@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-11-22
+
 ### Fixed
 
 - **Large integers in secrets are preserved** — numbers are now kept exactly as written in the source and target secrets. Previously, integers above 2^53 (9007199254740992), such as account or user IDs, were silently rounded when the target secret was written, including fields Syncret does not manage. A target write is now skipped only when the selected values match exactly as written, so `1.0` and `1` count as different ([#26](https://github.com/fayrus/syncret/issues/26)).
@@ -151,7 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.9...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.10...HEAD
+[0.4.10]: https://github.com/fayrus/syncret/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/fayrus/syncret/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/fayrus/syncret/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/fayrus/syncret/compare/v0.4.6...v0.4.7
