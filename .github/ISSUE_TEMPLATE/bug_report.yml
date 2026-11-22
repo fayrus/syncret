@@ -32,6 +32,8 @@ body:
     id: architecture
     attributes:
       label: Architecture
+      description: Select every architecture where the problem occurs. Select both if it is not architecture-specific.
+      multiple: true
       options:
         - arm64
         - amd64

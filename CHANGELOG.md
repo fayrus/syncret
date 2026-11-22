@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-11-22
+
 ### Fixed
 
+- **Large integers in secrets are preserved** — numbers are now kept exactly as written in the source and target secrets. Previously, integers above 2^53 (9007199254740992), such as account or user IDs, were silently rounded when the target secret was written, including fields Syncret does not manage. A target write is now skipped only when the selected values match exactly as written, so `1.0` and `1` count as different ([#26](https://github.com/fayrus/syncret/issues/26)).
 - **Released image tags can no longer be overwritten** — publishing now fails before the build when the `VERSION` image tag already exists on Docker Hub, or when Docker Hub cannot confirm it does not, so a pinned `vX.Y.Z` image always matches its Git tag. `latest` and the minor and major tags still move forward ([#24](https://github.com/fayrus/syncret/issues/24)).
 - **Pull requests that only change documentation are no longer blocked** — the test and lint checks now report as skipped instead of never reporting, so they can be required on `main` without holding up docs-only PRs.
+- **Bug reports can name both architectures** — the Architecture field now accepts `arm64`, `amd64`, or both, so a report no longer suggests a problem is limited to one architecture when it is not.
 
 ## [0.4.9] - 2026-11-15
 
@@ -149,7 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.9...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.10...HEAD
+[0.4.10]: https://github.com/fayrus/syncret/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/fayrus/syncret/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/fayrus/syncret/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/fayrus/syncret/compare/v0.4.6...v0.4.7

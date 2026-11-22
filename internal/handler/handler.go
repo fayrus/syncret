@@ -3,7 +3,10 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/fayrus/syncret/internal/config"
 	"github.com/fayrus/syncret/internal/event"
@@ -128,9 +131,15 @@ func markSkipped(result *executionResult, cfg *config.Config) {
 func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvider, secretValue string) error {
 	log := logctx.From(ctx)
 
+	// UseNumber keeps numbers as their original text: float64 cannot represent integers above 2^53.
+	dec := json.NewDecoder(strings.NewReader(secretValue))
+	dec.UseNumber()
 	var sourceData map[string]any
-	if err := json.Unmarshal([]byte(secretValue), &sourceData); err != nil {
+	if err := dec.Decode(&sourceData); err != nil {
 		return fmt.Errorf("handler: parse source secret: %w", err)
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("handler: parse source secret: unexpected data after JSON object")
 	}
 
 	log.Info("updating target secret",

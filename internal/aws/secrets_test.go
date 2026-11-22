@@ -326,3 +326,65 @@ func TestIdempotencyToken(t *testing.T) {
 		t.Errorf("token length = %d, want 36", len(a))
 	}
 }
+
+// ── MergeAndPutSecret number precision ───────────────────────────────────────
+
+func TestMergeAndPutSecret_PreservesLargeIntegers(t *testing.T) {
+	// 2^53 + 1 and 2^53 + 3 cannot be represented exactly as float64.
+	mock := &mockSecretsClient{
+		getOut: &secretsmanager.GetSecretValueOutput{
+			SecretString: aws.String(`{"user_id":9007199254740995,"account_id":1}`),
+			VersionId:    aws.String("v1"),
+		},
+	}
+	sm := NewSecretsManager(mock)
+	source := map[string]any{"account_id": json.Number("9007199254740993")}
+
+	changed, err := sm.MergeAndPutSecret(context.Background(), "arn:target", source, []string{"account_id"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !changed || mock.putCalledWith == nil {
+		t.Fatal("PutSecretValue was not called")
+	}
+
+	want := `{"account_id":9007199254740993,"user_id":9007199254740995}`
+	if got := aws.ToString(mock.putCalledWith.SecretString); got != want {
+		t.Errorf("SecretString = %s, want %s", got, want)
+	}
+}
+
+func TestMergeAndPutSecret_UnchangedLargeInteger(t *testing.T) {
+	mock := &mockSecretsClient{
+		getOut: &secretsmanager.GetSecretValueOutput{
+			SecretString: aws.String(`{"account_id":9007199254740993}`),
+			VersionId:    aws.String("v1"),
+		},
+	}
+	sm := NewSecretsManager(mock)
+	source := map[string]any{"account_id": json.Number("9007199254740993")}
+
+	changed, err := sm.MergeAndPutSecret(context.Background(), "arn:target", source, []string{"account_id"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if changed || mock.putCalledWith != nil {
+		t.Error("PutSecretValue must not be called when the large integer is unchanged")
+	}
+}
+
+func TestMergeAndPutSecret_TrailingDataInTarget(t *testing.T) {
+	mock := &mockSecretsClient{
+		getOut: &secretsmanager.GetSecretValueOutput{
+			SecretString: aws.String(`{"password":"old"} trailing`),
+			VersionId:    aws.String("v1"),
+		},
+	}
+	sm := NewSecretsManager(mock)
+	if _, err := sm.MergeAndPutSecret(context.Background(), "arn:target", map[string]any{"password": "new"}, []string{"password"}); err == nil {
+		t.Fatal("expected error for trailing data in target secret, got nil")
+	}
+	if mock.putCalledWith != nil {
+		t.Error("PutSecretValue must not be called when target JSON is invalid")
+	}
+}
