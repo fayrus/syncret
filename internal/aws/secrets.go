@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 
@@ -54,9 +56,16 @@ func (s *SecretsManager) MergeAndPutSecret(ctx context.Context, targetARN string
 		return false, err
 	}
 
+	// UseNumber keeps numbers as their original text: float64 cannot represent integers above 2^53,
+	// and the whole target is rewritten, including fields Syncret does not manage.
+	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.UseNumber()
 	var target map[string]any
-	if err := json.Unmarshal([]byte(raw), &target); err != nil {
+	if err := dec.Decode(&target); err != nil {
 		return false, fmt.Errorf("secrets: parse target %s: %w", targetARN, err)
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return false, fmt.Errorf("secrets: parse target %s: unexpected data after JSON object", targetARN)
 	}
 
 	changed := false

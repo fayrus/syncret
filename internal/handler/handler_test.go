@@ -16,6 +16,7 @@ type mockSecrets struct {
 	getErr    error
 	putErr    error
 	putArns   []string
+	putSource map[string]any
 	unchanged bool
 }
 
@@ -26,8 +27,9 @@ func (m *mockSecrets) GetSecretString(_ context.Context, arn string) (string, er
 	return m.values[arn], nil
 }
 
-func (m *mockSecrets) MergeAndPutSecret(_ context.Context, targetARN string, _ map[string]any, _ []string) (bool, error) {
+func (m *mockSecrets) MergeAndPutSecret(_ context.Context, targetARN string, sourceData map[string]any, _ []string) (bool, error) {
 	m.putArns = append(m.putArns, targetARN)
+	m.putSource = sourceData
 	if m.putErr != nil {
 		return false, m.putErr
 	}
@@ -370,6 +372,51 @@ func TestExecute_resultTracksPipelineStages(t *testing.T) {
 			}
 			if result.Failure != tt.wantFailure {
 				t.Errorf("Failure = %q, want %q", result.Failure, tt.wantFailure)
+			}
+		})
+	}
+}
+
+// ── updateTargetSecret source parsing ────────────────────────────────────────
+
+func TestUpdateTargetSecret_PreservesLargeIntegers(t *testing.T) {
+	// 2^53 + 1 cannot be represented exactly as a float64.
+	const largeInt = "9007199254740993"
+	sm := &mockSecrets{}
+	cfg := baseConfig()
+	cfg.TargetSecretKeys = []string{"account_id"}
+
+	if err := updateTargetSecret(context.Background(), cfg, sm, `{"account_id":`+largeInt+`}`); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := json.Marshal(sm.putSource["account_id"])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(got) != largeInt {
+		t.Errorf("account_id = %s, want %s", got, largeInt)
+	}
+}
+
+func TestUpdateTargetSecret_RejectsInvalidSource(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{name: "not JSON", source: "not valid json"},
+		{name: "trailing data after object", source: `{"password":"new"} trailing`},
+		{name: "second object", source: `{"password":"new"}{"password":"other"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := &mockSecrets{}
+			if err := updateTargetSecret(context.Background(), baseConfig(), sm, tt.source); err == nil {
+				t.Fatal("expected error for invalid source secret, got nil")
+			}
+			if len(sm.putArns) != 0 {
+				t.Error("MergeAndPutSecret must not be called when the source JSON is invalid")
 			}
 		})
 	}
