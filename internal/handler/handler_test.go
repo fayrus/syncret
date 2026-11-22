@@ -407,6 +407,7 @@ func TestUpdateTargetSecret_RejectsInvalidSource(t *testing.T) {
 		{name: "not JSON", source: "not valid json"},
 		{name: "trailing data after object", source: `{"password":"new"} trailing`},
 		{name: "second object", source: `{"password":"new"}{"password":"other"}`},
+		{name: "null", source: "null"},
 	}
 
 	for _, tt := range tests {

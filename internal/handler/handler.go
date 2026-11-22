@@ -141,6 +141,10 @@ func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvi
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return errors.New("handler: parse source secret: unexpected data after JSON object")
 	}
+	// JSON null decodes without error into a nil map.
+	if sourceData == nil {
+		return errors.New("handler: parse source secret: not a JSON object")
+	}
 
 	log.Info("updating target secret",
 		"target_arn", cfg.TargetSecretARN,
