@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -386,5 +387,22 @@ func TestMergeAndPutSecret_TrailingDataInTarget(t *testing.T) {
 	}
 	if mock.putCalledWith != nil {
 		t.Error("PutSecretValue must not be called when target JSON is invalid")
+	}
+}
+
+func TestMergeAndPutSecret_NullTarget(t *testing.T) {
+	mock := &mockSecretsClient{
+		getOut: &secretsmanager.GetSecretValueOutput{
+			SecretString: aws.String("null"),
+			VersionId:    aws.String("v1"),
+		},
+	}
+	sm := NewSecretsManager(mock)
+	_, err := sm.MergeAndPutSecret(context.Background(), "arn:target", map[string]any{"password": "new"}, []string{"password"})
+	if err == nil || !strings.Contains(err.Error(), "not a JSON object") {
+		t.Fatalf("err = %v, want a \"not a JSON object\" error", err)
+	}
+	if mock.putCalledWith != nil {
+		t.Error("PutSecretValue must not be called when the target is null")
 	}
 }

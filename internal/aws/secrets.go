@@ -67,6 +67,10 @@ func (s *SecretsManager) MergeAndPutSecret(ctx context.Context, targetARN string
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return false, fmt.Errorf("secrets: parse target %s: unexpected data after JSON object", targetARN)
 	}
+	// JSON null decodes without error into a nil map, which would panic on the first write.
+	if target == nil {
+		return false, fmt.Errorf("secrets: parse target %s: not a JSON object", targetARN)
+	}
 
 	changed := false
 	for _, k := range keys {
