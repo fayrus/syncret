@@ -15,10 +15,16 @@ import (
 	"github.com/fayrus/syncret/internal/notify"
 )
 
+// namedNotifier labels a notifier in logs, for example "gchat notification failed".
+type namedNotifier struct {
+	name     string
+	notifier Notifier
+}
+
 func StartLambda(cfg *config.Config, deps Dependencies) {
-	var gchat *notify.GoogleChat
+	var notifiers []namedNotifier
 	if cfg.GChatWebhook != "" {
-		gchat = notify.NewGoogleChat(cfg.GChatWebhook)
+		notifiers = append(notifiers, namedNotifier{name: "gchat", notifier: notify.NewGoogleChat(cfg.GChatWebhook)})
 	}
 
 	lambda.Start(func(ctx context.Context, payload json.RawMessage) error {
@@ -35,15 +41,21 @@ func StartLambda(cfg *config.Config, deps Dependencies) {
 			logctx.From(ctx).Error("handler execution failed", "error", err)
 		}
 
-		if gchat != nil {
-			p := buildNotifyPayload(cfg, result, start, requestID, err)
-			if notifyErr := gchat.Send(ctx, p); notifyErr != nil {
-				logctx.From(ctx).Warn("gchat notification failed", "error", notifyErr)
-			}
+		if len(notifiers) > 0 {
+			notifyAll(ctx, notifiers, buildNotifyPayload(cfg, result, start, requestID, err))
 		}
 
 		return err
 	})
+}
+
+// notifyAll sends p to every notifier. Failures are logged and never stop the others (DECISION-004).
+func notifyAll(ctx context.Context, notifiers []namedNotifier, p notify.Payload) {
+	for _, n := range notifiers {
+		if err := n.notifier.Send(ctx, p); err != nil {
+			logctx.From(ctx).Warn(n.name+" notification failed", "error", err)
+		}
+	}
 }
 
 func buildNotifyPayload(cfg *config.Config, result executionResult, occurredAt time.Time, requestID string, err error) notify.Payload {
