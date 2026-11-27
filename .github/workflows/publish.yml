@@ -88,7 +88,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       major: ${{ steps.version.outputs.major }}
       minor: ${{ steps.version.outputs.minor }}
-      digest: ${{ steps.build.outputs.digest }}
+      digest: ${{ steps.digest.outputs.digest }}
       base_digest: ${{ steps.base.outputs.digest }}
 
     steps:
@@ -131,7 +131,7 @@ jobs:
 
       # Only the labels are used here. The single tag sets
       # org.opencontainers.image.version to the release (vX.Y.Z) instead of
-      # `latest`; the publish job applies all tags once the scans pass.
+      # `latest`; the publish job pushes and tags the image once the scans pass.
       - name: 🏷️ Extract metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
@@ -139,14 +139,14 @@ jobs:
           images: fayrus/syncret
           tags: type=raw,value=${{ steps.version.outputs.version }}
 
-      # Pushed by digest only: no tag points to this image until both scans pass.
-      - name: 🔨 Build and push by digest
-        id: build
+      # Exported to an OCI archive instead of pushed: nothing reaches Docker Hub
+      # until both scans pass.
+      - name: 🔨 Build OCI archive
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          outputs: type=image,name=fayrus/syncret,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=oci,dest=${{ runner.temp }}/image.tar
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
@@ -155,6 +155,26 @@ jobs:
           pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # The index digest is what the publish job pushes with --preserve-digests.
+      - name: 🔎 Read image digest
+        id: digest
+        run: |
+          digest=$(tar -xOf "${RUNNER_TEMP}/image.tar" index.json | jq -r '.manifests[0].digest')
+          if [[ "$digest" != sha256:* ]]; then
+            echo "::error::Could not read the image index digest from the OCI archive (got '${digest}')."
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: 📤 Upload OCI archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}/image.tar
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
   security-scan:
     name: 🛡️ Security Scan (${{ matrix.arch }})
@@ -176,12 +196,33 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: 📥 Download OCI archive
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}
+
+      # Trivy ignores --platform on a multi-arch OCI layout, so scan a layout
+      # whose index points only to this platform's manifest (same blobs).
+      - name: 🧩 Extract ${{ matrix.platform }} layout
+        working-directory: ${{ runner.temp }}
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p "layout-${ARCH}"
+          tar -xf image.tar -C "layout-${ARCH}"
+          cd "layout-${ARCH}" || exit 1
+          index=$(jq -r '.manifests[0].digest' index.json)
+          manifest=$(jq -c --arg arch "$ARCH" \
+            '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch)] | if length == 1 then .[0] else error("expected one linux/\($arch) manifest, found \(length)") end' \
+            "blobs/sha256/${index#sha256:}")
+          jq -n --argjson m "$manifest" '{schemaVersion: 2, mediaType: "application/vnd.oci.image.index.v1+json", manifests: [$m]}' > index.json
+          echo "linux/${ARCH} manifest: $(jq -r '.manifests[0].digest' index.json)"
+
       - name: 🛡️ Scan image with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_PLATFORM: ${{ matrix.platform }}
         with:
-          image-ref: fayrus/syncret@${{ needs.build.outputs.digest }}
+          input: ${{ runner.temp }}/layout-${{ matrix.arch }}
           version: v0.76.2
           format: sarif
           output: trivy-results.sarif
@@ -218,17 +259,31 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: 📥 Download OCI archive
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}
+
+      # First push to Docker Hub, only after both scans passed. --preserve-digests
+      # keeps the scanned index digest; skopeo reads the docker login credentials.
+      - name: 🚀 Push scanned image
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          skopeo copy --all --preserve-digests \
+            "oci-archive:${RUNNER_TEMP}/image.tar" \
+            "docker://docker.io/fayrus/syncret:${VERSION}"
+
       # Tags the scanned digest; nothing is rebuilt.
-      - name: 🚀 Tag scanned image
+      - name: 🏷️ Tag scanned image
         env:
           DIGEST: ${{ needs.build.outputs.digest }}
-          VERSION: ${{ needs.build.outputs.version }}
           MINOR: ${{ needs.build.outputs.minor }}
           MAJOR: ${{ needs.build.outputs.major }}
         run: |
           docker buildx imagetools create \
             -t fayrus/syncret:latest \
-            -t "fayrus/syncret:${VERSION}" \
             -t "fayrus/syncret:${MINOR}" \
             -t "fayrus/syncret:${MAJOR}" \
             "fayrus/syncret@${DIGEST}"
