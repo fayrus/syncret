@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -121,6 +122,9 @@ func (c *Config) validate() error {
 	if _, err := time.LoadLocation(c.Timezone); err != nil {
 		return fmt.Errorf("config: invalid %s %q: %w", envTimezone, c.Timezone, err)
 	}
+	if err := validateWebhookURL(envGChatWebhook, c.GChatWebhook); err != nil {
+		return err
+	}
 
 	return c.validateECSConfig()
 }
@@ -134,6 +138,19 @@ func (c *Config) validateECSConfig() error {
 	}
 	if len(c.ECSServices) == 0 {
 		return fmt.Errorf("config: %s is required when %s is true", envAWSECSServices, envAWSECSForceDeploy)
+	}
+	return nil
+}
+
+// validateWebhookURL accepts an empty value (notifications disabled) or an https URL with a host.
+// The error never includes the URL: webhook URLs carry credentials in the query string.
+func validateWebhookURL(name, value string) error {
+	if value == "" {
+		return nil
+	}
+	u, err := url.Parse(value)
+	if err != nil || u.Scheme != "https" || u.Host == "" {
+		return fmt.Errorf("config: invalid %s: must be an https URL with a host", name)
 	}
 	return nil
 }

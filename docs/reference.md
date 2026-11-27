@@ -55,7 +55,7 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `SYNCRET_GCHAT_WEBHOOK` | No | — | Incoming webhook URL. When set, Syncret sends a notification after every execution — success and failure. |
+| `SYNCRET_GCHAT_WEBHOOK` | No | — | Incoming webhook URL. When set, Syncret sends a notification after every execution — success and failure. Must be an `https` URL with a host; an invalid URL fails at startup. |
 
 **Message format:**
 

@@ -369,6 +369,43 @@ func TestLoad_notificationContext(t *testing.T) {
 	}
 }
 
+func TestLoad_gchatWebhook(t *testing.T) {
+	tests := []struct {
+		name    string
+		webhook string
+		wantErr bool
+	}{
+		{name: "empty disables notifications"},
+		{name: "https URL is accepted", webhook: "https://chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t"},
+		{name: "missing scheme is rejected", webhook: "chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t", wantErr: true},
+		{name: "http scheme is rejected", webhook: "http://chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t", wantErr: true},
+		{name: "missing host is rejected", webhook: "https:///v1/spaces/AAA/messages?key=k&token=t", wantErr: true},
+		{name: "unparseable URL is rejected", webhook: "https://chat.googleapis.com/%zz?key=k&token=t", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := baseEnv()
+			env[envGChatWebhook] = tt.webhook
+			setEnv(t, env)
+
+			cfg, err := Load()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				if strings.Contains(err.Error(), "token=t") {
+					t.Errorf("error %q exposes the webhook URL", err)
+				}
+				return
+			}
+			if cfg.GChatWebhook != tt.webhook {
+				t.Errorf("GChatWebhook = %q, want %q", cfg.GChatWebhook, tt.webhook)
+			}
+		})
+	}
+}
+
 func TestLoad_ecsForceDeploy(t *testing.T) {
 	t.Run("disabled by default does not require ECS config", func(t *testing.T) {
 		setEnv(t, baseEnv())
