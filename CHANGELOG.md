@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-27
+
 ### Fixed
 
 - **The Docker Hub page shows the current release** — its ECR copy example and tag table now use the version being published instead of a fixed `v0.5.0`.
+
+### Notes
+
+- No changes to Syncret itself; the image is rebuilt from the same code as v0.5.1. Released so the Docker Hub page shows the current version.
 
 ## [0.5.1] - 2026-11-27
 
@@ -223,7 +229,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/fayrus/syncret/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/fayrus/syncret/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/fayrus/syncret/compare/v0.4.14...v0.5.0
 [0.4.14]: https://github.com/fayrus/syncret/compare/v0.4.13...v0.4.14
