@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-11-27
+
 ### Fixed
 
 - **Notifications tell a real target write from a no-op** — when the target secret already holds the selected values, the notification now says `✅ Target secret already up to date` instead of `✅ Target secret updated`, so a retried event no longer looks like a second write ([#38](https://github.com/fayrus/syncret/issues/38)).
@@ -181,7 +183,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.12...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.13...HEAD
+[0.4.13]: https://github.com/fayrus/syncret/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/fayrus/syncret/compare/v0.4.11...v0.4.12
 [0.4.11]: https://github.com/fayrus/syncret/compare/v0.4.10...v0.4.11
 [0.4.10]: https://github.com/fayrus/syncret/compare/v0.4.9...v0.4.10
