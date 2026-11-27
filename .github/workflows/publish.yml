@@ -314,22 +314,17 @@ jobs:
             echo "created=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 📝 Check if README changed
-        id: readme
-        run: |
-          if git diff --name-only HEAD~1 HEAD | grep -q "^README.md$"; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
+      # The Docker Hub page is written for operators (.github/DOCKERHUB.md), not
+      # copied from the README, and is refreshed on every publish.
       - name: 📝 Update Docker Hub description
-        if: steps.readme.outputs.changed == 'true'
+        id: dockerhub
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: fayrus/syncret
+          readme-filepath: ./.github/DOCKERHUB.md
+          short-description: "Syncs dependent secrets and redeploys ECS services when an AWS Secrets Manager secret rotates"
 
       - name: 📋 Publish summary
         if: always()
@@ -348,7 +343,6 @@ jobs:
             echo "| Image digest (scanned and published) | ${{ needs.build.outputs.digest }} |"
             echo "| Runtime base digest | cgr.dev/chainguard/static@${{ needs.build.outputs.base_digest }} |"
             echo "| Git tag created | ${{ steps.git_tag.outputs.created }} |"
-            echo "| README changed | ${{ steps.readme.outputs.changed }} |"
-            echo "| Docker Hub description update | ${{ steps.readme.outputs.changed == 'true' && 'requested' || 'skipped' }} |"
+            echo "| Docker Hub description update | ${{ steps.dockerhub.outcome }} |"
             echo "| Vulnerable image override | ${{ github.event_name == 'workflow_dispatch' && inputs.allow_vulnerable_image || false }} |"
           } >> "$GITHUB_STEP_SUMMARY"
