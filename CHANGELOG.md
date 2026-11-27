@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Publishing rejects a version lower than the latest release** — the publish workflow now fails before building unless `VERSION` is in `vX.Y.Z` format and greater than the latest release tag, so `latest` and the minor and major image tags can no longer move backwards ([#44](https://github.com/fayrus/syncret/issues/44)).
+
 ## [0.5.0] - 2026-11-27
 
 ### Added
