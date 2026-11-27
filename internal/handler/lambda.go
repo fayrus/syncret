@@ -113,6 +113,8 @@ func notificationActions(result executionResult) []string {
 	switch result.TargetUpdate {
 	case stageSucceeded:
 		actions = append(actions, "✅ Target secret updated")
+	case stageUnchanged:
+		actions = append(actions, "✅ Target secret already up to date")
 	case stageFailed:
 		actions = append(actions, "❌ Target secret update failed")
 	case stageSkipped:

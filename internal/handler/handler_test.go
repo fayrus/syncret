@@ -291,10 +291,10 @@ func TestExecute_resultTracksPipelineStages(t *testing.T) {
 			wantECS:    stageSucceeded,
 		},
 		{
-			name:       "unchanged target still succeeds and redeploys ECS",
+			name:       "unchanged target is reported and still redeploys ECS",
 			payload:    serviceEvent("RotationSucceeded", sourceARN),
 			unchanged:  true,
-			wantTarget: stageSucceeded,
+			wantTarget: stageUnchanged,
 			wantECS:    stageSucceeded,
 		},
 		{
@@ -386,7 +386,7 @@ func TestUpdateTargetSecret_PreservesLargeIntegers(t *testing.T) {
 	cfg := baseConfig()
 	cfg.TargetSecretKeys = []string{"account_id"}
 
-	if err := updateTargetSecret(context.Background(), cfg, sm, `{"account_id":`+largeInt+`}`); err != nil {
+	if _, err := updateTargetSecret(context.Background(), cfg, sm, `{"account_id":`+largeInt+`}`); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -413,7 +413,7 @@ func TestUpdateTargetSecret_RejectsInvalidSource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &mockSecrets{}
-			if err := updateTargetSecret(context.Background(), baseConfig(), sm, tt.source); err == nil {
+			if _, err := updateTargetSecret(context.Background(), baseConfig(), sm, tt.source); err == nil {
 				t.Fatal("expected error for invalid source secret, got nil")
 			}
 			if len(sm.putArns) != 0 {

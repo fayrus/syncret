@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Notifications tell a real target write from a no-op** — when the target secret already holds the selected values, the notification now says `✅ Target secret already up to date` instead of `✅ Target secret updated`, so a retried event no longer looks like a second write ([#38](https://github.com/fayrus/syncret/issues/38)).
+
 ## [0.4.12] - 2026-11-26
 
 ### Added

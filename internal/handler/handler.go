@@ -32,6 +32,7 @@ type stageStatus string
 const (
 	stageNotAttempted stageStatus = "not_attempted"
 	stageSucceeded    stageStatus = "succeeded"
+	stageUnchanged    stageStatus = "unchanged"
 	stageFailed       stageStatus = "failed"
 	stageSkipped      stageStatus = "skipped"
 )
@@ -99,12 +100,16 @@ func execute(ctx context.Context, cfg *config.Config, payload []byte, deps Depen
 			result.Failure = failureSourceRead
 			return result, fmt.Errorf("handler: get secret: %w", err)
 		}
-		if err := updateTargetSecret(ctx, cfg, deps.Secrets, secretValue); err != nil {
+		changed, err := updateTargetSecret(ctx, cfg, deps.Secrets, secretValue)
+		if err != nil {
 			result.TargetUpdate = stageFailed
 			result.Failure = failureTargetUpdate
 			return result, err
 		}
 		result.TargetUpdate = stageSucceeded
+		if !changed {
+			result.TargetUpdate = stageUnchanged
+		}
 	}
 
 	if cfg.ECSForceDeploy {
@@ -128,7 +133,7 @@ func markSkipped(result *executionResult, cfg *config.Config) {
 	}
 }
 
-func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvider, secretValue string) error {
+func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvider, secretValue string) (bool, error) {
 	log := logctx.From(ctx)
 
 	// UseNumber keeps numbers as their original text: float64 cannot represent integers above 2^53.
@@ -136,14 +141,14 @@ func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvi
 	dec.UseNumber()
 	var sourceData map[string]any
 	if err := dec.Decode(&sourceData); err != nil {
-		return fmt.Errorf("handler: parse source secret: %w", err)
+		return false, fmt.Errorf("handler: parse source secret: %w", err)
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return errors.New("handler: parse source secret: unexpected data after JSON object")
+		return false, errors.New("handler: parse source secret: unexpected data after JSON object")
 	}
 	// JSON null decodes without error into a nil map.
 	if sourceData == nil {
-		return errors.New("handler: parse source secret: not a JSON object")
+		return false, errors.New("handler: parse source secret: not a JSON object")
 	}
 
 	log.Info("updating target secret",
@@ -153,13 +158,13 @@ func updateTargetSecret(ctx context.Context, cfg *config.Config, sm SecretsProvi
 
 	changed, err := sm.MergeAndPutSecret(ctx, cfg.TargetSecretARN, sourceData, cfg.TargetSecretKeys)
 	if err != nil {
-		return fmt.Errorf("handler: update target secret: %w", err)
+		return false, fmt.Errorf("handler: update target secret: %w", err)
 	}
 
 	if !changed {
 		log.Info("target secret already up to date", "target_arn", cfg.TargetSecretARN)
-		return nil
+		return false, nil
 	}
 	log.Info("target secret updated", "target_arn", cfg.TargetSecretARN)
-	return nil
+	return true, nil
 }

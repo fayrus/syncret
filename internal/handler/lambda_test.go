@@ -89,6 +89,21 @@ func TestBuildNotifyPayload(t *testing.T) {
 			},
 		},
 		{
+			name: "unchanged target reports that no write happened",
+			result: executionResult{
+				EventName:      event.RotationSucceeded,
+				EventSecretARN: sourceARN,
+				TargetUpdate:   stageUnchanged,
+				ECSForceDeploy: stageSucceeded,
+			},
+			wantEvent:  "RotationSucceeded",
+			wantStatus: notify.StatusSuccess,
+			wantActions: []string{
+				"✅ Target secret already up to date",
+				"✅ ECS force-deployment request accepted",
+			},
+		},
+		{
 			name: "rotation failure reports skipped stages",
 			result: executionResult{
 				EventName:      event.RotationFailed,
