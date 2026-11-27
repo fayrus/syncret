@@ -46,9 +46,8 @@ func main() {
 
 func setupLogger(level, format string) {
 	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(level)); err != nil {
-		slog.Warn("invalid log level, defaulting to info", "value", level)
-	}
+	// Cannot fail: config.validate() only accepts debug, info, warn, and error.
+	_ = lvl.UnmarshalText([]byte(level))
 
 	opts := &slog.HandlerOptions{Level: lvl}
 	var h slog.Handler

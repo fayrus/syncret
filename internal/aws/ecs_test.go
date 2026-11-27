@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,16 +13,18 @@ import (
 )
 
 type mockECSClient struct {
-	describeOut   *ecs.DescribeServicesOutput
-	describeErr   error
-	describeCalls int
-	updateErr     error
-	updateErrFor  string // if set, only this service name returns updateErr; others succeed
-	updateCalls   []string
+	describeOut     *ecs.DescribeServicesOutput
+	describeErr     error
+	describeCalls   int
+	describeBatches [][]string
+	updateErr       error
+	updateErrFor    string // if set, only this service name returns updateErr; others succeed
+	updateCalls     []string
 }
 
 func (m *mockECSClient) DescribeServices(_ context.Context, params *ecs.DescribeServicesInput, _ ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error) {
 	m.describeCalls++
+	m.describeBatches = append(m.describeBatches, params.Services)
 	return m.describeOut, m.describeErr
 }
 
@@ -191,6 +194,10 @@ func TestForceNewDeployment_Batching(t *testing.T) {
 	}
 	if mock.describeCalls != 2 {
 		t.Errorf("DescribeServices called %d times, want 2 (11 services batched in 10+1)", mock.describeCalls)
+	}
+	wantBatches := [][]string{services[:10], services[10:]}
+	if !reflect.DeepEqual(mock.describeBatches, wantBatches) {
+		t.Errorf("DescribeServices batches = %v, want %v", mock.describeBatches, wantBatches)
 	}
 	if len(mock.updateCalls) != n {
 		t.Errorf("UpdateService called %d times, want %d", len(mock.updateCalls), n)
