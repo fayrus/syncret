@@ -17,7 +17,7 @@
 ```mermaid
 flowchart TD
     A[Event delivered] --> B["Parse event\ntype + secret identifier"]
-    B --> C{"Secret identifier matches\nSYNCRET_SECRET_ARN?"}
+    B --> C{"Secret identifier matches\nSYNCRET_AWS_SECRET_ARN?"}
     C -->|No| Z[Error — rejected]
     C -->|Yes| D{Event type}
     D -->|Rotation failed| W["Log warning\nExit cleanly"]
@@ -28,7 +28,12 @@ flowchart TD
     G -->|Yes| H["Force redeployment\nper configured service"]
     G -->|No| I[Done]
     H --> I
+    Z --> N["Notify configured webhooks\nGoogle Chat and/or Slack"]
+    W --> N
+    I --> N
 ```
+
+After every execution — including rejected events and failures — Syncret sends a notification to each configured webhook. Each webhook is sent independently; a failed notification is logged as a warning and never changes the execution result. See [Notifications](reference.md#notifications).
 
 ---
 
@@ -40,6 +45,7 @@ internal/config/   → env var loading and validation; exits on any missing/inva
 internal/event/    → event payload parser → typed Event struct
 internal/handler/  → orchestration: parse → validate → [secret update] → [redeployment]
 internal/aws/      → AWS implementation: Secrets Manager, ECS
+internal/notify/   → notification message and webhook clients: Google Chat, Slack
 internal/logctx/   → slog.Logger propagation via context.Context
 ```
 
