@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.14] - 2026-11-27
+
+### Fixed
+
+- **Invalid Google Chat webhook URLs are caught at startup** — `SYNCRET_GCHAT_WEBHOOK` must now be an `https` URL with a host. Previously a malformed URL was accepted, and every notification then failed with only a warning in the logs ([#40](https://github.com/fayrus/syncret/issues/40)).
+
+### Notes
+
+- If `SYNCRET_GCHAT_WEBHOOK` is set to an invalid URL, the function now fails to start with `config: invalid SYNCRET_GCHAT_WEBHOOK: must be an https URL with a host`, and secrets are not propagated until it is fixed. Correct the URL or unset the variable. The error does not include the URL, because it contains credentials.
+
 ## [0.4.13] - 2026-11-27
 
 ### Fixed
@@ -183,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.13...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.14...HEAD
+[0.4.14]: https://github.com/fayrus/syncret/compare/v0.4.13...v0.4.14
 [0.4.13]: https://github.com/fayrus/syncret/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/fayrus/syncret/compare/v0.4.11...v0.4.12
 [0.4.11]: https://github.com/fayrus/syncret/compare/v0.4.10...v0.4.11
