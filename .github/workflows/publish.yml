@@ -35,6 +35,28 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Publishing moves latest and the minor and major tags, so a VERSION lower
+      # than the latest release would move them backwards.
+      - name: 🔒 Ensure version is newer than the latest release
+        run: |
+          VERSION=$(cat VERSION)
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::VERSION ${VERSION} is not in vX.Y.Z format."
+            exit 1
+          fi
+          latest=$(git ls-remote --tags --refs origin 'v*' \
+            | sed 's|.*refs/tags/||' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V | tail -n 1)
+          if [ -z "$latest" ]; then
+            echo "No previous release tag found."
+          elif [ "$VERSION" = "$latest" ] || [ "$(printf '%s\n%s\n' "$latest" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            echo "::error::VERSION ${VERSION} is not greater than the latest release ${latest}. Bump VERSION above ${latest}."
+            exit 1
+          else
+            echo "VERSION ${VERSION} is greater than the latest release ${latest}."
+          fi
+
       # Released version tags are immutable: fail before building rather than
       # overwrite an image that deployments or rollbacks may already pin.
       - name: 🔒 Ensure version tag is not published
