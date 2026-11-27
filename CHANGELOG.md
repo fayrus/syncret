@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Docker Hub page shows the current release** — its ECR copy example and tag table now use the version being published instead of a fixed `v0.5.0`.
+
 ## [0.5.1] - 2026-11-27
 
 ### Changed

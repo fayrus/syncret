@@ -315,7 +315,21 @@ jobs:
           fi
 
       # The Docker Hub page is written for operators (.github/DOCKERHUB.md), not
-      # copied from the README, and is refreshed on every publish.
+      # copied from the README, and is refreshed on every publish with the
+      # release's tags in place of {{VERSION}}, {{MINOR}}, and {{MAJOR}}.
+      - name: 📝 Render Docker Hub description
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          MINOR: ${{ needs.build.outputs.minor }}
+          MAJOR: ${{ needs.build.outputs.major }}
+        run: |
+          sed -e "s/{{VERSION}}/${VERSION}/g" -e "s/{{MINOR}}/${MINOR}/g" -e "s/{{MAJOR}}/${MAJOR}/g" \
+            .github/DOCKERHUB.md > "${RUNNER_TEMP}/DOCKERHUB.md"
+          if grep -n '{{' "${RUNNER_TEMP}/DOCKERHUB.md"; then
+            echo "::error::Unreplaced placeholder in .github/DOCKERHUB.md."
+            exit 1
+          fi
+
       - name: 📝 Update Docker Hub description
         id: dockerhub
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5
@@ -323,7 +337,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: fayrus/syncret
-          readme-filepath: ./.github/DOCKERHUB.md
+          readme-filepath: ${{ runner.temp }}/DOCKERHUB.md
           short-description: "Syncs dependent secrets and redeploys ECS services when an AWS Secrets Manager secret rotates"
 
       - name: 📋 Publish summary
