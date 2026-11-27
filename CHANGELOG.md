@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-11-26
+
 ### Added
 
 - **Continuous vulnerability checks** — every pull request that changes code now runs `govulncheck`, and a daily run on `main` reports vulnerabilities disclosed after a release. Only vulnerabilities in code Syncret actually calls are reported, including the Go standard library for the version in `go.mod` ([#32](https://github.com/fayrus/syncret/issues/32)).
+
+### Changed
+
+- **Go module dependencies upgraded** — `aws-sdk-go-v2/config` 1.33.21, `service/ecs` 1.106.0, plus related indirect AWS SDK modules (`credentials`, `signin`, `sts`).
+- **Docs dependencies upgraded** in `docs/requirements.txt` — `mkdocs-material` 9.8.2. Docs-only; no runtime impact.
+- **`actions/setup-go` upgraded to v7.1.0** (SHA-pinned) in CI.
 
 ## [0.4.11] - 2026-11-22
 
@@ -169,7 +177,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.11...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.12...HEAD
+[0.4.12]: https://github.com/fayrus/syncret/compare/v0.4.11...v0.4.12
 [0.4.11]: https://github.com/fayrus/syncret/compare/v0.4.10...v0.4.11
 [0.4.10]: https://github.com/fayrus/syncret/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/fayrus/syncret/compare/v0.4.8...v0.4.9
