@@ -51,13 +51,16 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 
 ---
 
-## Google Chat
+## Notifications
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `SYNCRET_GCHAT_WEBHOOK` | No | — | Incoming webhook URL. When set, Syncret sends a notification after every execution — success and failure. Must be an `https` URL with a host; an invalid URL fails at startup. |
+| `SYNCRET_GCHAT_WEBHOOK` | No | — | Google Chat incoming webhook URL. |
+| `SYNCRET_SLACK_WEBHOOK` | No | — | Slack [incoming webhook](https://api.slack.com/messaging/webhooks) URL (`https://hooks.slack.com/services/...`). Slack Workflow Builder webhooks are not supported. |
 
-**Message format:**
+When a webhook is set, Syncret sends a notification to it after every execution — success and failure. Both can be set at once; each is sent independently. Each URL must be an `https` URL with a host; an invalid URL fails at startup, and the error does not include the URL because it contains credentials.
+
+**Message format** (the same in Google Chat and Slack):
 
 ```
 *Syncret — Production*
@@ -79,4 +82,4 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 
 Optional resource fields are omitted when they are not configured. `ECS force-deployment request accepted` means ECS accepted `UpdateService` with `ForceNewDeployment=true`; Syncret does not wait for the deployment to stabilize. `Target secret already up to date` means the target already held the selected values, so no new version was written; this is expected when Lambda retries an event.
 
-On failure, each action is reported as failed, skipped, or not attempted. The notification contains a sanitized error and the Lambda request ID; technical details remain in CloudWatch Logs. If the notification itself fails, Syncret logs a warning and preserves the Lambda's original result.
+On failure, each action is reported as failed, skipped, or not attempted. The notification contains a sanitized error and the Lambda request ID; technical details remain in CloudWatch Logs. If a notification fails, Syncret logs a warning (`gchat notification failed` or `slack notification failed`) and preserves the Lambda's original result.

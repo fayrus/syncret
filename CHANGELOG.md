@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Slack notifications** — set `SYNCRET_SLACK_WEBHOOK` to a Slack incoming webhook URL to receive the same notification Syncret sends to Google Chat, after every execution. Google Chat and Slack can be enabled together; a failure in one does not affect the other. The URL is validated at startup like the Google Chat one ([#42](https://github.com/fayrus/syncret/issues/42)).
+
 ### Changed
 
 - **Cleaner notification layout** — each action now starts with its status icon instead of a bullet followed by the icon, and `Status:` and `Error:` no longer have a wide gap before the value.

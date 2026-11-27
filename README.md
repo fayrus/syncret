@@ -69,6 +69,7 @@ SYNCRET_AWS_ECS_SERVICES=backend,worker
 SYNCRET_INSTANCE_NAME="V4 Production"
 SYNCRET_TIMEZONE=America/Lima
 SYNCRET_GCHAT_WEBHOOK="https://chat.googleapis.com/v1/spaces/SPACE/messages?key=KEY&token=TOKEN"
+SYNCRET_SLACK_WEBHOOK="https://hooks.slack.com/services/T000/B000/XXXX"
 ```
 
 At least one action (`SYNCRET_AWS_TARGET_SECRET_ARN` or `SYNCRET_AWS_ECS_FORCE_DEPLOY=true`) must be set or Syncret will refuse to start.

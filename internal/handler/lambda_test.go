@@ -281,3 +281,33 @@ func TestNotifyAll_failureDoesNotStopOthers(t *testing.T) {
 		t.Errorf("logs = %q, want no slack failure", logs.String())
 	}
 }
+
+func TestBuildNotifiers(t *testing.T) {
+	tests := []struct {
+		name  string
+		gchat string
+		slack string
+		want  []string
+	}{
+		{name: "no webhooks"},
+		{name: "Google Chat only", gchat: "https://chat.example.com/hook", want: []string{"gchat"}},
+		{name: "Slack only", slack: "https://hooks.example.com/hook", want: []string{"slack"}},
+		{name: "both", gchat: "https://chat.example.com/hook", slack: "https://hooks.example.com/hook", want: []string{"gchat", "slack"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseConfig()
+			cfg.GChatWebhook = tt.gchat
+			cfg.SlackWebhook = tt.slack
+
+			var got []string
+			for _, n := range buildNotifiers(cfg) {
+				got = append(got, n.name)
+			}
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Errorf("notifiers = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

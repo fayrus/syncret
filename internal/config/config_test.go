@@ -369,40 +369,53 @@ func TestLoad_notificationContext(t *testing.T) {
 	}
 }
 
-func TestLoad_gchatWebhook(t *testing.T) {
+func TestLoad_webhooks(t *testing.T) {
 	tests := []struct {
 		name    string
 		webhook string
 		wantErr bool
 	}{
 		{name: "empty disables notifications"},
-		{name: "https URL is accepted", webhook: "https://chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t"},
-		{name: "missing scheme is rejected", webhook: "chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t", wantErr: true},
-		{name: "http scheme is rejected", webhook: "http://chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t", wantErr: true},
-		{name: "missing host is rejected", webhook: "https:///v1/spaces/AAA/messages?key=k&token=t", wantErr: true},
-		{name: "unparseable URL is rejected", webhook: "https://chat.googleapis.com/%zz?key=k&token=t", wantErr: true},
+		{name: "https URL is accepted", webhook: "https://hooks.example.com/services/AAA?key=k&token=t"},
+		{name: "missing scheme is rejected", webhook: "hooks.example.com/services/AAA?key=k&token=t", wantErr: true},
+		{name: "http scheme is rejected", webhook: "http://hooks.example.com/services/AAA?key=k&token=t", wantErr: true},
+		{name: "missing host is rejected", webhook: "https:///services/AAA?key=k&token=t", wantErr: true},
+		{name: "unparseable URL is rejected", webhook: "https://hooks.example.com/%zz?key=k&token=t", wantErr: true},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			env := baseEnv()
-			env[envGChatWebhook] = tt.webhook
-			setEnv(t, env)
+	webhooks := []struct {
+		env string
+		get func(*Config) string
+	}{
+		{envGChatWebhook, func(c *Config) string { return c.GChatWebhook }},
+		{envSlackWebhook, func(c *Config) string { return c.SlackWebhook }},
+	}
 
-			cfg, err := Load()
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.wantErr {
-				if strings.Contains(err.Error(), "token=t") {
-					t.Errorf("error %q exposes the webhook URL", err)
+	for _, w := range webhooks {
+		for _, tt := range tests {
+			t.Run(w.env+"/"+tt.name, func(t *testing.T) {
+				env := baseEnv()
+				env[w.env] = tt.webhook
+				setEnv(t, env)
+
+				cfg, err := Load()
+				if (err != nil) != tt.wantErr {
+					t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
 				}
-				return
-			}
-			if cfg.GChatWebhook != tt.webhook {
-				t.Errorf("GChatWebhook = %q, want %q", cfg.GChatWebhook, tt.webhook)
-			}
-		})
+				if tt.wantErr {
+					if !strings.Contains(err.Error(), w.env) {
+						t.Errorf("error %q does not name %s", err, w.env)
+					}
+					if strings.Contains(err.Error(), "token=t") {
+						t.Errorf("error %q exposes the webhook URL", err)
+					}
+					return
+				}
+				if got := w.get(cfg); got != tt.webhook {
+					t.Errorf("%s = %q, want %q", w.env, got, tt.webhook)
+				}
+			})
+		}
 	}
 }
 

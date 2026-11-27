@@ -22,10 +22,7 @@ type namedNotifier struct {
 }
 
 func StartLambda(cfg *config.Config, deps Dependencies) {
-	var notifiers []namedNotifier
-	if cfg.GChatWebhook != "" {
-		notifiers = append(notifiers, namedNotifier{name: "gchat", notifier: notify.NewGoogleChat(cfg.GChatWebhook)})
-	}
+	notifiers := buildNotifiers(cfg)
 
 	lambda.Start(func(ctx context.Context, payload json.RawMessage) error {
 		start := time.Now().UTC()
@@ -47,6 +44,18 @@ func StartLambda(cfg *config.Config, deps Dependencies) {
 
 		return err
 	})
+}
+
+// buildNotifiers returns a notifier for each configured webhook.
+func buildNotifiers(cfg *config.Config) []namedNotifier {
+	var notifiers []namedNotifier
+	if cfg.GChatWebhook != "" {
+		notifiers = append(notifiers, namedNotifier{name: "gchat", notifier: notify.NewGoogleChat(cfg.GChatWebhook)})
+	}
+	if cfg.SlackWebhook != "" {
+		notifiers = append(notifiers, namedNotifier{name: "slack", notifier: notify.NewSlack(cfg.SlackWebhook)})
+	}
+	return notifiers
 }
 
 // notifyAll sends p to every notifier. Failures are logged and never stop the others (DECISION-004).
