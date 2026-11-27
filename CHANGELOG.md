@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Docker Hub page written for operators** — the Docker Hub description now comes from a dedicated page that explains how to copy the image to ECR for Lambda, which tag to use, the minimum configuration, and how the image is secured, and it is refreshed on every release. Previously it was meant to mirror the GitHub README but never updated ([#48](https://github.com/fayrus/syncret/issues/48)).
 - **The image reaches Docker Hub only after it passes the security scans** — the publish workflow now builds the image into a run artifact, scans each architecture from it, and pushes it only when both scans pass, keeping the scanned digest. Previously the image was pushed untagged before scanning, so an image that failed the scan stayed on Docker Hub, reachable by digest ([#46](https://github.com/fayrus/syncret/issues/46)).
 - **Publishing rejects a version lower than the latest release** — the publish workflow now fails before building unless `VERSION` is in `vX.Y.Z` format and greater than the latest release tag, so `latest` and the minor and major image tags can no longer move backwards ([#44](https://github.com/fayrus/syncret/issues/44)).
 
