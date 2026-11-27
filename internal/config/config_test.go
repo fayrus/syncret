@@ -1,6 +1,8 @@
 package config
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -239,21 +241,11 @@ func TestLoad_parseList(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load() unexpected error: %v", err)
 			}
-			if len(cfg.ECSServices) != len(tt.wantSvcs) {
-				t.Errorf("ECSServices = %v, want %v", cfg.ECSServices, tt.wantSvcs)
+			if !slices.Equal(cfg.ECSServices, tt.wantSvcs) {
+				t.Errorf("ECSServices = %q, want %q", cfg.ECSServices, tt.wantSvcs)
 			}
-			for i, s := range cfg.ECSServices {
-				if s != tt.wantSvcs[i] {
-					t.Errorf("ECSServices[%d] = %q, want %q", i, s, tt.wantSvcs[i])
-				}
-			}
-			if len(cfg.TargetSecretKeys) != len(tt.wantKeys) {
-				t.Errorf("TargetSecretKeys = %v, want %v", cfg.TargetSecretKeys, tt.wantKeys)
-			}
-			for i, k := range cfg.TargetSecretKeys {
-				if k != tt.wantKeys[i] {
-					t.Errorf("TargetSecretKeys[%d] = %q, want %q", i, k, tt.wantKeys[i])
-				}
+			if !slices.Equal(cfg.TargetSecretKeys, tt.wantKeys) {
+				t.Errorf("TargetSecretKeys = %q, want %q", cfg.TargetSecretKeys, tt.wantKeys)
 			}
 		})
 	}
@@ -394,108 +386,95 @@ func TestLoad_webhooks(t *testing.T) {
 	for _, w := range webhooks {
 		for _, tt := range tests {
 			t.Run(w.env+"/"+tt.name, func(t *testing.T) {
-				env := baseEnv()
-				env[w.env] = tt.webhook
-				setEnv(t, env)
-
-				cfg, err := Load()
-				if (err != nil) != tt.wantErr {
-					t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if tt.wantErr {
-					if !strings.Contains(err.Error(), w.env) {
-						t.Errorf("error %q does not name %s", err, w.env)
-					}
-					if strings.Contains(err.Error(), "token=t") {
-						t.Errorf("error %q exposes the webhook URL", err)
-					}
-					return
-				}
-				if got := w.get(cfg); got != tt.webhook {
-					t.Errorf("%s = %q, want %q", w.env, got, tt.webhook)
-				}
+				checkWebhookLoad(t, w.env, w.get, tt.webhook, tt.wantErr)
 			})
 		}
 	}
 }
 
+func checkWebhookLoad(t *testing.T, name string, get func(*Config) string, webhook string, wantErr bool) {
+	t.Helper()
+	env := baseEnv()
+	env[name] = webhook
+	setEnv(t, env)
+
+	cfg, err := Load()
+	if (err != nil) != wantErr {
+		t.Fatalf("Load() error = %v, wantErr %v", err, wantErr)
+	}
+	if wantErr {
+		assertWebhookError(t, err, name)
+		return
+	}
+	if got := get(cfg); got != webhook {
+		t.Errorf("%s = %q, want %q", name, got, webhook)
+	}
+}
+
+// assertWebhookError checks that err names the variable and never includes the URL.
+func assertWebhookError(t *testing.T, err error, name string) {
+	t.Helper()
+	if !strings.Contains(err.Error(), name) {
+		t.Errorf("error %q does not name %s", err, name)
+	}
+	if strings.Contains(err.Error(), "token=t") {
+		t.Errorf("error %q exposes the webhook URL", err)
+	}
+}
+
 func TestLoad_ecsForceDeploy(t *testing.T) {
-	t.Run("disabled by default does not require ECS config", func(t *testing.T) {
-		setEnv(t, baseEnv())
+	tests := []struct {
+		name         string
+		env          map[string]string
+		wantErr      bool
+		wantDeploy   bool
+		wantServices []string
+	}{
+		{name: "disabled by default does not require ECS config"},
+		{name: "invalid bool returns error", env: map[string]string{envAWSECSForceDeploy: "yes"}, wantErr: true},
+		{
+			name:    "enabled requires ECS cluster",
+			env:     map[string]string{envAWSECSForceDeploy: "true", envAWSECSServices: "syncret-db"},
+			wantErr: true,
+		},
+		{
+			name:    "enabled requires ECS services",
+			env:     map[string]string{envAWSECSForceDeploy: "true", envAWSECSCluster: "my-cluster"},
+			wantErr: true,
+		},
+		{
+			name:         "enabled with single service",
+			env:          map[string]string{envAWSECSForceDeploy: "true", envAWSECSCluster: "my-cluster", envAWSECSServices: "syncret-db"},
+			wantDeploy:   true,
+			wantServices: []string{"syncret-db"},
+		},
+		{
+			name:         "enabled with multiple services",
+			env:          map[string]string{envAWSECSForceDeploy: "true", envAWSECSCluster: "my-cluster", envAWSECSServices: "svc1,svc2,svc3"},
+			wantDeploy:   true,
+			wantServices: []string{"svc1", "svc2", "svc3"},
+		},
+	}
 
-		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() unexpected error: %v", err)
-		}
-		if cfg.ECSForceDeploy {
-			t.Error("ECSForceDeploy = true, want false")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := baseEnv()
+			maps.Copy(env, tt.env)
+			setEnv(t, env)
 
-	t.Run("invalid bool returns error", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "yes"
-		setEnv(t, env)
-
-		_, err := Load()
-		if err == nil {
-			t.Fatal("Load() expected error for invalid ECS force deploy bool, got nil")
-		}
-	})
-
-	t.Run("enabled requires ECS cluster", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSServices] = "syncret-db"
-		setEnv(t, env)
-
-		_, err := Load()
-		if err == nil {
-			t.Fatal("Load() expected error when ECS cluster missing, got nil")
-		}
-	})
-
-	t.Run("enabled requires ECS services", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSCluster] = "my-cluster"
-		setEnv(t, env)
-
-		_, err := Load()
-		if err == nil {
-			t.Fatal("Load() expected error when ECS services missing, got nil")
-		}
-	})
-
-	t.Run("enabled with single service", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSCluster] = "my-cluster"
-		env[envAWSECSServices] = "syncret-db"
-		setEnv(t, env)
-
-		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() unexpected error: %v", err)
-		}
-		if len(cfg.ECSServices) != 1 || cfg.ECSServices[0] != "syncret-db" {
-			t.Errorf("ECSServices = %v, want [syncret-db]", cfg.ECSServices)
-		}
-	})
-
-	t.Run("enabled with multiple services", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSCluster] = "my-cluster"
-		env[envAWSECSServices] = "svc1,svc2,svc3"
-		setEnv(t, env)
-
-		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() unexpected error: %v", err)
-		}
-		if len(cfg.ECSServices) != 3 {
-			t.Errorf("ECSServices len = %d, want 3", len(cfg.ECSServices))
-		}
-	})
+			cfg, err := Load()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if cfg.ECSForceDeploy != tt.wantDeploy {
+				t.Errorf("ECSForceDeploy = %v, want %v", cfg.ECSForceDeploy, tt.wantDeploy)
+			}
+			if !slices.Equal(cfg.ECSServices, tt.wantServices) {
+				t.Errorf("ECSServices = %q, want %q", cfg.ECSServices, tt.wantServices)
+			}
+		})
+	}
 }

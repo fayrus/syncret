@@ -87,6 +87,22 @@ func TestGetSecretString(t *testing.T) {
 
 // ── MergeAndPutSecret ────────────────────────────────────────────────────────
 
+// mergeCase describes one MergeAndPutSecret call. wantPut lists values the
+// written secret must contain; wantAbsent lists keys it must not contain.
+type mergeCase struct {
+	name          string
+	target        map[string]any
+	source        map[string]any
+	keys          []string
+	getErr        error
+	putErr        error
+	wantErr       bool
+	wantNoPut     bool
+	wantUnchanged bool
+	wantPut       map[string]any
+	wantAbsent    []string
+}
+
 func TestMergeAndPutSecret(t *testing.T) {
 	target := map[string]any{
 		"host":     "db.example.com",
@@ -100,73 +116,28 @@ func TestMergeAndPutSecret(t *testing.T) {
 		"password": "newpass",
 	}
 
-	tests := []struct {
-		name          string
-		target        map[string]any
-		source        map[string]any
-		keys          []string
-		getErr        error
-		putErr        error
-		wantErr       bool
-		wantNoPut     bool
-		wantUnchanged bool
-		checkPut      func(t *testing.T, input *secretsmanager.PutSecretValueInput)
-	}{
+	tests := []mergeCase{
 		{
 			name:    "updates single key",
 			target:  target,
 			source:  source,
 			keys:    []string{"password"},
-			wantErr: false,
-			checkPut: func(t *testing.T, input *secretsmanager.PutSecretValueInput) {
-				var m map[string]any
-				if err := json.Unmarshal([]byte(*input.SecretString), &m); err != nil {
-					t.Fatalf("unmarshal: %v", err)
-				}
-				if m["password"] != "newpass" {
-					t.Errorf("password = %v, want newpass", m["password"])
-				}
-				if m["host"] != "db.example.com" {
-					t.Errorf("host should be preserved, got %v", m["host"])
-				}
-			},
+			wantPut: map[string]any{"password": "newpass", "host": "db.example.com"},
 		},
 		{
 			name:    "updates multiple keys",
 			target:  target,
 			source:  source,
 			keys:    []string{"username", "password"},
-			wantErr: false,
-			checkPut: func(t *testing.T, input *secretsmanager.PutSecretValueInput) {
-				var m map[string]any
-				if err := json.Unmarshal([]byte(*input.SecretString), &m); err != nil {
-					t.Fatalf("unmarshal: %v", err)
-				}
-				if m["username"] != "app" {
-					t.Errorf("username = %v, want app", m["username"])
-				}
-				if m["password"] != "newpass" {
-					t.Errorf("password = %v, want newpass", m["password"])
-				}
-			},
+			wantPut: map[string]any{"username": "app", "password": "newpass"},
 		},
 		{
-			name:   "maps source key to different target key",
-			target: map[string]any{"MB_DB_PASS": "old"},
-			source: map[string]any{"password": "newpass"},
-			keys:   []string{"password:MB_DB_PASS"},
-			checkPut: func(t *testing.T, input *secretsmanager.PutSecretValueInput) {
-				var m map[string]any
-				if err := json.Unmarshal([]byte(*input.SecretString), &m); err != nil {
-					t.Fatalf("unmarshal: %v", err)
-				}
-				if m["MB_DB_PASS"] != "newpass" {
-					t.Errorf("MB_DB_PASS = %v, want newpass", m["MB_DB_PASS"])
-				}
-				if _, ok := m["password"]; ok {
-					t.Error("source key 'password' should not appear in target")
-				}
-			},
+			name:       "maps source key to different target key",
+			target:     map[string]any{"MB_DB_PASS": "old"},
+			source:     map[string]any{"password": "newpass"},
+			keys:       []string{"password:MB_DB_PASS"},
+			wantPut:    map[string]any{"MB_DB_PASS": "newpass"},
+			wantAbsent: []string{"password"},
 		},
 		{
 			name:          "unchanged values skip PutSecretValue",
@@ -177,15 +148,11 @@ func TestMergeAndPutSecret(t *testing.T) {
 			wantUnchanged: true,
 		},
 		{
-			name:   "new destination key is written even when other values match",
-			target: map[string]any{"password": "newpass"},
-			source: source,
-			keys:   []string{"password", "password:MB_DB_PASS"},
-			checkPut: func(t *testing.T, input *secretsmanager.PutSecretValueInput) {
-				if input == nil {
-					t.Fatal("PutSecretValue was not called")
-				}
-			},
+			name:    "new destination key is written even when other values match",
+			target:  map[string]any{"password": "newpass"},
+			source:  source,
+			keys:    []string{"password", "password:MB_DB_PASS"},
+			wantPut: map[string]any{"MB_DB_PASS": "newpass"},
 		},
 		{
 			name:      "missing source key returns error without calling PutSecretValue",
@@ -215,28 +182,57 @@ func TestMergeAndPutSecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mock := &mockSecretsClient{
-				getOut: secretString(tt.target),
-				getErr: tt.getErr,
-				putErr: tt.putErr,
-			}
-			sm := NewSecretsManager(mock)
-
-			changed, err := sm.MergeAndPutSecret(context.Background(), "arn:target", tt.source, tt.keys)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !tt.wantErr && changed == tt.wantUnchanged {
-				t.Errorf("changed = %v, want %v", changed, !tt.wantUnchanged)
-			}
-
-			if tt.wantNoPut && mock.putCalledWith != nil {
-				t.Error("PutSecretValue must not be called")
-			}
-			if !tt.wantErr && tt.checkPut != nil {
-				tt.checkPut(t, mock.putCalledWith)
-			}
+			runMergeCase(t, tt)
 		})
+	}
+}
+
+func runMergeCase(t *testing.T, tt mergeCase) {
+	t.Helper()
+	mock := &mockSecretsClient{
+		getOut: secretString(tt.target),
+		getErr: tt.getErr,
+		putErr: tt.putErr,
+	}
+	sm := NewSecretsManager(mock)
+
+	changed, err := sm.MergeAndPutSecret(context.Background(), "arn:target", tt.source, tt.keys)
+	if (err != nil) != tt.wantErr {
+		t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+	}
+	if tt.wantNoPut && mock.putCalledWith != nil {
+		t.Error("PutSecretValue must not be called")
+	}
+	if tt.wantErr {
+		return
+	}
+	if changed == tt.wantUnchanged {
+		t.Errorf("changed = %v, want %v", changed, !tt.wantUnchanged)
+	}
+	if tt.wantPut != nil {
+		assertPutSecret(t, mock.putCalledWith, tt.wantPut, tt.wantAbsent)
+	}
+}
+
+// assertPutSecret checks that PutSecretValue was called with a secret holding want and none of absent.
+func assertPutSecret(t *testing.T, input *secretsmanager.PutSecretValueInput, want map[string]any, absent []string) {
+	t.Helper()
+	if input == nil {
+		t.Fatal("PutSecretValue was not called")
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(*input.SecretString), &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+	for _, k := range absent {
+		if _, ok := got[k]; ok {
+			t.Errorf("key %q should not appear in target", k)
+		}
 	}
 }
 
