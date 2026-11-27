@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -422,82 +423,58 @@ func assertWebhookError(t *testing.T, err error, name string) {
 }
 
 func TestLoad_ecsForceDeploy(t *testing.T) {
-	t.Run("disabled by default does not require ECS config", func(t *testing.T) {
-		setEnv(t, baseEnv())
+	tests := []struct {
+		name         string
+		env          map[string]string
+		wantErr      bool
+		wantDeploy   bool
+		wantServices []string
+	}{
+		{name: "disabled by default does not require ECS config"},
+		{name: "invalid bool returns error", env: map[string]string{envAWSECSForceDeploy: "yes"}, wantErr: true},
+		{
+			name:    "enabled requires ECS cluster",
+			env:     map[string]string{envAWSECSForceDeploy: "true", envAWSECSServices: "syncret-db"},
+			wantErr: true,
+		},
+		{
+			name:    "enabled requires ECS services",
+			env:     map[string]string{envAWSECSForceDeploy: "true", envAWSECSCluster: "my-cluster"},
+			wantErr: true,
+		},
+		{
+			name:         "enabled with single service",
+			env:          map[string]string{envAWSECSForceDeploy: "true", envAWSECSCluster: "my-cluster", envAWSECSServices: "syncret-db"},
+			wantDeploy:   true,
+			wantServices: []string{"syncret-db"},
+		},
+		{
+			name:         "enabled with multiple services",
+			env:          map[string]string{envAWSECSForceDeploy: "true", envAWSECSCluster: "my-cluster", envAWSECSServices: "svc1,svc2,svc3"},
+			wantDeploy:   true,
+			wantServices: []string{"svc1", "svc2", "svc3"},
+		},
+	}
 
-		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() unexpected error: %v", err)
-		}
-		if cfg.ECSForceDeploy {
-			t.Error("ECSForceDeploy = true, want false")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := baseEnv()
+			maps.Copy(env, tt.env)
+			setEnv(t, env)
 
-	t.Run("invalid bool returns error", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "yes"
-		setEnv(t, env)
-
-		_, err := Load()
-		if err == nil {
-			t.Fatal("Load() expected error for invalid ECS force deploy bool, got nil")
-		}
-	})
-
-	t.Run("enabled requires ECS cluster", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSServices] = "syncret-db"
-		setEnv(t, env)
-
-		_, err := Load()
-		if err == nil {
-			t.Fatal("Load() expected error when ECS cluster missing, got nil")
-		}
-	})
-
-	t.Run("enabled requires ECS services", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSCluster] = "my-cluster"
-		setEnv(t, env)
-
-		_, err := Load()
-		if err == nil {
-			t.Fatal("Load() expected error when ECS services missing, got nil")
-		}
-	})
-
-	t.Run("enabled with single service", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSCluster] = "my-cluster"
-		env[envAWSECSServices] = "syncret-db"
-		setEnv(t, env)
-
-		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() unexpected error: %v", err)
-		}
-		if len(cfg.ECSServices) != 1 || cfg.ECSServices[0] != "syncret-db" {
-			t.Errorf("ECSServices = %v, want [syncret-db]", cfg.ECSServices)
-		}
-	})
-
-	t.Run("enabled with multiple services", func(t *testing.T) {
-		env := baseEnv()
-		env[envAWSECSForceDeploy] = "true"
-		env[envAWSECSCluster] = "my-cluster"
-		env[envAWSECSServices] = "svc1,svc2,svc3"
-		setEnv(t, env)
-
-		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() unexpected error: %v", err)
-		}
-		if len(cfg.ECSServices) != 3 {
-			t.Errorf("ECSServices len = %d, want 3", len(cfg.ECSServices))
-		}
-	})
+			cfg, err := Load()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if cfg.ECSForceDeploy != tt.wantDeploy {
+				t.Errorf("ECSForceDeploy = %v, want %v", cfg.ECSForceDeploy, tt.wantDeploy)
+			}
+			if !slices.Equal(cfg.ECSServices, tt.wantServices) {
+				t.Errorf("ECSServices = %q, want %q", cfg.ECSServices, tt.wantServices)
+			}
+		})
+	}
 }
