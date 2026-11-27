@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Cleaner notification layout** — each action now starts with its status icon instead of a bullet followed by the icon, and `Status:` and `Error:` no longer have a wide gap before the value.
+
 ### Fixed
 
 - **Webhook URLs no longer appear in logs** — when a notification could not be sent (for example, a network error or timeout), the warning logged the full webhook URL, including its key and token. The error now omits the URL.

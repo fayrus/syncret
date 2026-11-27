@@ -72,9 +72,9 @@ SYNCRET_TARGET_SECRET_KEYS=username,password
 *Date:* 2026-06-20 13:06:17 -05:00 (America/Lima)
 *Request ID:* 00000000-0000-0000-0000-000000000000
 *Actions:*
-  • ✅ Target secret updated
-  • ✅ ECS force-deployment request accepted
-*Status:*  ✅ Success
+✅ Target secret updated
+✅ ECS force-deployment request accepted
+*Status:* ✅ Success
 ```
 
 Optional resource fields are omitted when they are not configured. `ECS force-deployment request accepted` means ECS accepted `UpdateService` with `ForceNewDeployment=true`; Syncret does not wait for the deployment to stabilize. `Target secret already up to date` means the target already held the selected values, so no new version was written; this is expected when Lambda retries an event.

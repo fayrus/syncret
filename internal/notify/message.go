@@ -88,12 +88,12 @@ func format(p Payload) string {
 	if len(p.Actions) > 0 {
 		sb.WriteString("*Actions:*\n")
 		for _, a := range p.Actions {
-			fmt.Fprintf(&sb, "  • %s\n", a)
+			fmt.Fprintf(&sb, "%s\n", a)
 		}
 	}
-	fmt.Fprintf(&sb, "*Status:*  %s", status)
+	fmt.Fprintf(&sb, "*Status:* %s", status)
 	if p.ErrorMessage != "" {
-		fmt.Fprintf(&sb, "\n*Error:*   %s", p.ErrorMessage)
+		fmt.Fprintf(&sb, "\n*Error:* %s", p.ErrorMessage)
 	}
 	return sb.String()
 }
