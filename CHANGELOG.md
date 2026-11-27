@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-27
+
 ### Changed
 
 - **Docker Hub page written for operators** — the Docker Hub description now comes from a dedicated page that explains how to copy the image to ECR for Lambda, which tag to use, the minimum configuration, and how the image is secured, and it is refreshed on every release. Previously it was meant to mirror the GitHub README but never updated ([#48](https://github.com/fayrus/syncret/issues/48)).
 - **The image reaches Docker Hub only after it passes the security scans** — the publish workflow now builds the image into a run artifact, scans each architecture from it, and pushes it only when both scans pass, keeping the scanned digest. Previously the image was pushed untagged before scanning, so an image that failed the scan stayed on Docker Hub, reachable by digest ([#46](https://github.com/fayrus/syncret/issues/46)).
 - **Publishing rejects a version lower than the latest release** — the publish workflow now fails before building unless `VERSION` is in `vX.Y.Z` format and greater than the latest release tag, so `latest` and the minor and major image tags can no longer move backwards ([#44](https://github.com/fayrus/syncret/issues/44)).
+
+### Notes
+
+- No changes to Syncret's behavior or configuration. This release removes unreachable code and strengthens a test ([#50](https://github.com/fayrus/syncret/issues/50)), and is the first image published through the new pipeline: built once, scanned for both architectures, and only then pushed to Docker Hub.
 
 ## [0.5.0] - 2026-11-27
 
@@ -213,7 +219,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/fayrus/syncret/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/fayrus/syncret/compare/v0.4.14...v0.5.0
 [0.4.14]: https://github.com/fayrus/syncret/compare/v0.4.13...v0.4.14
 [0.4.13]: https://github.com/fayrus/syncret/compare/v0.4.12...v0.4.13
