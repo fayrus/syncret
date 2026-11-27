@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-27
+
 ### Added
 
 - **Slack notifications** — set `SYNCRET_SLACK_WEBHOOK` to a Slack incoming webhook URL to receive the same notification Syncret sends to Google Chat, after every execution. Google Chat and Slack can be enabled together; a failure in one does not affect the other. The URL is validated at startup like the Google Chat one ([#42](https://github.com/fayrus/syncret/issues/42)).
@@ -205,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-arch container** — supports `linux/amd64` and `linux/arm64`; ARM64 (Graviton) preferred for lower cost and better performance-per-watt
 - **Build-time version embedding** — version string injected via `-ldflags` and logged at startup
 
-[Unreleased]: https://github.com/fayrus/syncret/compare/v0.4.14...HEAD
+[Unreleased]: https://github.com/fayrus/syncret/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/fayrus/syncret/compare/v0.4.14...v0.5.0
 [0.4.14]: https://github.com/fayrus/syncret/compare/v0.4.13...v0.4.14
 [0.4.13]: https://github.com/fayrus/syncret/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/fayrus/syncret/compare/v0.4.11...v0.4.12
