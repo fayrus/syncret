@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -53,15 +54,14 @@ func nilStatusService(name string) types.Service {
 
 func TestForceNewDeployment(t *testing.T) {
 	tests := []struct {
-		name              string
-		services          []string
-		describeOut       *ecs.DescribeServicesOutput
-		describeErr       error
-		updateErr         error
-		updateErrFor      string
-		wantErr           bool
-		wantUpdated       []string
-		wantDescribeCalls int
+		name         string
+		services     []string
+		describeOut  *ecs.DescribeServicesOutput
+		describeErr  error
+		updateErr    error
+		updateErrFor string
+		wantErr      bool
+		wantUpdated  []string
 	}{
 		{
 			name:     "single active service is deployed",
@@ -157,19 +157,8 @@ func TestForceNewDeployment(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
-
-			if len(mock.updateCalls) != len(tt.wantUpdated) {
-				t.Fatalf("UpdateService called %d times, want %d", len(mock.updateCalls), len(tt.wantUpdated))
-			}
-
-			for i, svc := range tt.wantUpdated {
-				if mock.updateCalls[i] != svc {
-					t.Errorf("updateCalls[%d] = %q, want %q", i, mock.updateCalls[i], svc)
-				}
-			}
-
-			if tt.wantDescribeCalls > 0 && mock.describeCalls != tt.wantDescribeCalls {
-				t.Errorf("DescribeServices called %d times, want %d", mock.describeCalls, tt.wantDescribeCalls)
+			if !slices.Equal(mock.updateCalls, tt.wantUpdated) {
+				t.Errorf("UpdateService calls = %q, want %q", mock.updateCalls, tt.wantUpdated)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -239,21 +240,11 @@ func TestLoad_parseList(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load() unexpected error: %v", err)
 			}
-			if len(cfg.ECSServices) != len(tt.wantSvcs) {
-				t.Errorf("ECSServices = %v, want %v", cfg.ECSServices, tt.wantSvcs)
+			if !slices.Equal(cfg.ECSServices, tt.wantSvcs) {
+				t.Errorf("ECSServices = %q, want %q", cfg.ECSServices, tt.wantSvcs)
 			}
-			for i, s := range cfg.ECSServices {
-				if s != tt.wantSvcs[i] {
-					t.Errorf("ECSServices[%d] = %q, want %q", i, s, tt.wantSvcs[i])
-				}
-			}
-			if len(cfg.TargetSecretKeys) != len(tt.wantKeys) {
-				t.Errorf("TargetSecretKeys = %v, want %v", cfg.TargetSecretKeys, tt.wantKeys)
-			}
-			for i, k := range cfg.TargetSecretKeys {
-				if k != tt.wantKeys[i] {
-					t.Errorf("TargetSecretKeys[%d] = %q, want %q", i, k, tt.wantKeys[i])
-				}
+			if !slices.Equal(cfg.TargetSecretKeys, tt.wantKeys) {
+				t.Errorf("TargetSecretKeys = %q, want %q", cfg.TargetSecretKeys, tt.wantKeys)
 			}
 		})
 	}
@@ -394,28 +385,39 @@ func TestLoad_webhooks(t *testing.T) {
 	for _, w := range webhooks {
 		for _, tt := range tests {
 			t.Run(w.env+"/"+tt.name, func(t *testing.T) {
-				env := baseEnv()
-				env[w.env] = tt.webhook
-				setEnv(t, env)
-
-				cfg, err := Load()
-				if (err != nil) != tt.wantErr {
-					t.Fatalf("Load() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if tt.wantErr {
-					if !strings.Contains(err.Error(), w.env) {
-						t.Errorf("error %q does not name %s", err, w.env)
-					}
-					if strings.Contains(err.Error(), "token=t") {
-						t.Errorf("error %q exposes the webhook URL", err)
-					}
-					return
-				}
-				if got := w.get(cfg); got != tt.webhook {
-					t.Errorf("%s = %q, want %q", w.env, got, tt.webhook)
-				}
+				checkWebhookLoad(t, w.env, w.get, tt.webhook, tt.wantErr)
 			})
 		}
+	}
+}
+
+func checkWebhookLoad(t *testing.T, name string, get func(*Config) string, webhook string, wantErr bool) {
+	t.Helper()
+	env := baseEnv()
+	env[name] = webhook
+	setEnv(t, env)
+
+	cfg, err := Load()
+	if (err != nil) != wantErr {
+		t.Fatalf("Load() error = %v, wantErr %v", err, wantErr)
+	}
+	if wantErr {
+		assertWebhookError(t, err, name)
+		return
+	}
+	if got := get(cfg); got != webhook {
+		t.Errorf("%s = %q, want %q", name, got, webhook)
+	}
+}
+
+// assertWebhookError checks that err names the variable and never includes the URL.
+func assertWebhookError(t *testing.T, err error, name string) {
+	t.Helper()
+	if !strings.Contains(err.Error(), name) {
+		t.Errorf("error %q does not name %s", err, name)
+	}
+	if strings.Contains(err.Error(), "token=t") {
+		t.Errorf("error %q exposes the webhook URL", err)
 	}
 }
 
