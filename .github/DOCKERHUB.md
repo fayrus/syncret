@@ -15,7 +15,7 @@ Lambda cannot pull images from Docker Hub, and it needs a single-architecture im
 
 ```sh
 ECR=123456789012.dkr.ecr.us-east-1.amazonaws.com/syncret
-VERSION=v0.5.0   # pick a release from the Tags page
+VERSION={{VERSION}}
 
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -33,9 +33,9 @@ Every release publishes four tags that point to the same image:
 
 | Tag | Example | Moves when | Use it for |
 | --- | --- | --- | --- |
-| `vX.Y.Z` | `v0.5.0` | Never | Production. Reproducible copies to ECR; upgrade deliberately. |
-| `vX.Y` | `v0.5` | Each patch release | Picking up the latest fixes within a minor version when you copy. |
-| `vX` | `v0` | Each minor and patch release | Picking up fixes and new features without breaking changes when you copy. |
+| `vX.Y.Z` | `{{VERSION}}` | Never | Production. Reproducible copies to ECR; upgrade deliberately. |
+| `vX.Y` | `{{MINOR}}` | Each patch release | Picking up the latest fixes within a minor version when you copy. |
+| `vX` | `{{MAJOR}}` | Each minor and patch release | Picking up fixes and new features without breaking changes when you copy. |
 | `latest` | | Every release, including major versions | Trying Syncret out. Avoid in production. |
 
 Your function runs the image you copied to ECR, so a moving tag only changes what you get the next time you copy it. All tags are on the [Tags](https://hub.docker.com/r/fayrus/syncret/tags) page, and each release is described in the [GitHub Releases](https://github.com/fayrus/syncret/releases).
