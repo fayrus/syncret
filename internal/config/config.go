@@ -27,6 +27,7 @@ const (
 	envTimezone         = "SYNCRET_TIMEZONE"
 
 	envGChatWebhook = "SYNCRET_GCHAT_WEBHOOK"
+	envSlackWebhook = "SYNCRET_SLACK_WEBHOOK"
 )
 
 type Config struct {
@@ -48,6 +49,7 @@ type Config struct {
 	Timezone     string
 
 	GChatWebhook string
+	SlackWebhook string
 }
 
 func Load() (*Config, error) {
@@ -64,6 +66,7 @@ func Load() (*Config, error) {
 
 		TargetSecretARN: os.Getenv(envAWSTargetSecretARN),
 		GChatWebhook:    os.Getenv(envGChatWebhook),
+		SlackWebhook:    os.Getenv(envSlackWebhook),
 	}
 
 	var err error
@@ -123,6 +126,9 @@ func (c *Config) validate() error {
 		return fmt.Errorf("config: invalid %s %q: %w", envTimezone, c.Timezone, err)
 	}
 	if err := validateWebhookURL(envGChatWebhook, c.GChatWebhook); err != nil {
+		return err
+	}
+	if err := validateWebhookURL(envSlackWebhook, c.SlackWebhook); err != nil {
 		return err
 	}
 

@@ -1,13 +1,17 @@
 package handler
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fayrus/syncret/internal/config"
 	"github.com/fayrus/syncret/internal/event"
+	"github.com/fayrus/syncret/internal/logctx"
 	"github.com/fayrus/syncret/internal/notify"
 )
 
@@ -239,5 +243,71 @@ func assertBuildNotifyPayload(t *testing.T, p notify.Payload, wantEvent, wantEve
 	}
 	if strings.Contains(p.ErrorMessage, "internal details") || strings.Contains(p.ErrorMessage, "raw ARN") {
 		t.Errorf("ErrorMessage leaked raw handler error: %q", p.ErrorMessage)
+	}
+}
+
+type mockNotifier struct {
+	err  error
+	sent []notify.Payload
+}
+
+func (m *mockNotifier) Send(_ context.Context, p notify.Payload) error {
+	m.sent = append(m.sent, p)
+	return m.err
+}
+
+func TestNotifyAll_failureDoesNotStopOthers(t *testing.T) {
+	var logs bytes.Buffer
+	ctx := logctx.WithLogger(context.Background(), slog.New(slog.NewTextHandler(&logs, nil)))
+	failing := &mockNotifier{err: errors.New("unavailable")}
+	working := &mockNotifier{}
+	p := notify.Payload{EventName: "RotationSucceeded"}
+
+	notifyAll(ctx, []namedNotifier{
+		{name: "gchat", notifier: failing},
+		{name: "slack", notifier: working},
+	}, p)
+
+	if len(failing.sent) != 1 || len(working.sent) != 1 {
+		t.Fatalf("sent = %d and %d, want 1 each", len(failing.sent), len(working.sent))
+	}
+	if working.sent[0].EventName != p.EventName {
+		t.Errorf("EventName = %q, want %q", working.sent[0].EventName, p.EventName)
+	}
+	if !strings.Contains(logs.String(), `msg="gchat notification failed"`) {
+		t.Errorf("logs = %q, want a gchat notification failed warning", logs.String())
+	}
+	if strings.Contains(logs.String(), "slack notification failed") {
+		t.Errorf("logs = %q, want no slack failure", logs.String())
+	}
+}
+
+func TestBuildNotifiers(t *testing.T) {
+	tests := []struct {
+		name  string
+		gchat string
+		slack string
+		want  []string
+	}{
+		{name: "no webhooks"},
+		{name: "Google Chat only", gchat: "https://chat.example.com/hook", want: []string{"gchat"}},
+		{name: "Slack only", slack: "https://hooks.example.com/hook", want: []string{"slack"}},
+		{name: "both", gchat: "https://chat.example.com/hook", slack: "https://hooks.example.com/hook", want: []string{"gchat", "slack"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseConfig()
+			cfg.GChatWebhook = tt.gchat
+			cfg.SlackWebhook = tt.slack
+
+			var got []string
+			for _, n := range buildNotifiers(cfg) {
+				got = append(got, n.name)
+			}
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Errorf("notifiers = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

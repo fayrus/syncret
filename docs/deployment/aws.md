@@ -159,6 +159,8 @@ aws lambda create-function \
   }'
 ```
 
+To receive notifications, also set `SYNCRET_GCHAT_WEBHOOK` and/or `SYNCRET_SLACK_WEBHOOK` (see [Notifications](../reference.md#notifications)). Webhook URLs contain credentials; treat them like secrets. If the function runs in a VPC, it needs outbound internet access (for example, through a NAT gateway) to reach the webhooks.
+
 ---
 
 ## Step 4 — Create the EventBridge rule

@@ -11,6 +11,7 @@ import (
 	"github.com/fayrus/syncret/internal/config"
 	"github.com/fayrus/syncret/internal/event"
 	"github.com/fayrus/syncret/internal/logctx"
+	"github.com/fayrus/syncret/internal/notify"
 )
 
 type SecretsProvider interface {
@@ -20,6 +21,10 @@ type SecretsProvider interface {
 
 type ComputeProvider interface {
 	ForceNewDeployment(ctx context.Context, cluster string, services []string) error
+}
+
+type Notifier interface {
+	Send(ctx context.Context, p notify.Payload) error
 }
 
 type Dependencies struct {
